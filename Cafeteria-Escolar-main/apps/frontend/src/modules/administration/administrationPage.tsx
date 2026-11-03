@@ -13,8 +13,9 @@ import { InventorySection } from "../inventory";
 import type { AdministrationSection } from "./types";
 
 export function AdministrationPage() {
-  const [activeSection, setActiveSection] =
-    useState<AdministrationSection>("dashboard");
+  const [activeSection, setActiveSection] = useState<AdministrationSection>(() =>
+    window.location.hash.startsWith("#/admin/students") ? "students" : "dashboard",
+  );
 
   const sections: Record<AdministrationSection, React.ReactNode> = {
     dashboard: <DashboardSection />,

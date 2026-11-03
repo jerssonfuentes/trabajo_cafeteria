@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, Pencil, Plus, Power, RotateCcw, WalletCards } from "lucide-react";
 
 import {
@@ -63,6 +63,7 @@ export function StudentsManagementSection() {
   } | null>(null);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
+  const handledPosPayment = useRef(false);
 
   const account = students.find((item) => item.id === accountId) ?? null;
   const statusStudent = students.find((item) => item.id === statusId) ?? null;
@@ -99,6 +100,29 @@ export function StudentsManagementSection() {
       ),
     [students],
   );
+
+  useEffect(() => {
+    if (loading || handledPosPayment.current) return;
+    const [hashPath, hashQuery = ""] = window.location.hash.split("?");
+    const params = new URLSearchParams(hashQuery);
+    const targetId = params.get("studentId");
+    if (hashPath !== "#/admin/students" || params.get("action") !== "abono" || !targetId) return;
+
+    handledPosPayment.current = true;
+    const target = students.find((student) => student.id === targetId);
+    if (!target) {
+      setMessage("No se encontró el estudiante para registrar el abono.");
+    } else {
+      const type = target.netBalance < 0 ? "debt-payment" : "top-up";
+      setFinanceId(target.id);
+      setMovementType(type);
+      setMovementValue("");
+      setMovementDetail(type === "debt-payment" ? "Abono desde punto de venta" : "Recarga desde punto de venta");
+      setConfirmMovement(false);
+      setMessage("");
+    }
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}#/admin/students`);
+  }, [loading, students]);
 
   useEffect(() => {
     if (!accountId) return;

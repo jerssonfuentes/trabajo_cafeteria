@@ -258,6 +258,16 @@ export function PosPage() {
     setDialog({ kind: 'notice', title, message })
   }
 
+  function goToRegisterPayment() {
+    if (!selectedStudent) return
+    if (!can('admin:access')) {
+      showDemoNotice('Permiso requerido', 'Solo un administrador puede registrar recargas o abonos. Contacta al administrador de la cafetería.')
+      return
+    }
+    const params = new URLSearchParams({ studentId: selectedStudent.accountId, action: 'abono' })
+    window.location.hash = `/admin/students?${params.toString()}`
+  }
+
   return (
     <div className="pos-shell flex min-h-dvh flex-col bg-[#eef5fa] text-slate-900">
       <TopBar />
@@ -298,9 +308,7 @@ export function PosPage() {
           onPrimaryAction={() => mode === 'student'
             ? void confirmStudentConsumption()
             : void confirmCashSale()}
-          onRegisterPayment={() =>
-            showDemoNotice('Recargas y abonos', 'Registra el movimiento desde Administración → Estudiantes. El saldo se actualizará aquí automáticamente.')
-          }
+          onRegisterPayment={goToRegisterPayment}
           onRemove={removeProduct}
           onShowHistory={() => mode === 'student'
             ? void showStudentHistory()
