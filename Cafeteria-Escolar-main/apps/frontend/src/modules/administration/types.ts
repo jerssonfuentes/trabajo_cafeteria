@@ -5,6 +5,7 @@ export type AdministrationSection =
   | "inventory"
   | "users"
   | "registers"
+  | "closure"
   | "sales"
   | "reports"
   | "settings";

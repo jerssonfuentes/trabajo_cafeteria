@@ -54,12 +54,12 @@ export function TopBar() {
           </div>
 
           {can('admin:access') && <a
-            aria-label="Abrir Administración"
+            aria-label={session?.user.role === 'administrator' ? 'Abrir Administración' : 'Abrir Cierre de caja'}
             className="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-xl border border-white/50 bg-white/15 px-2 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-white/25 sm:px-3 sm:text-base"
-            href="#/admin"
+            href={session?.user.role === 'administrator' ? '#/admin' : '#/admin/closure'}
           >
             <Settings aria-hidden="true" className="size-5" />
-            <span className="hidden sm:inline">Admin</span>
+            <span className="hidden sm:inline">{session?.user.role === 'administrator' ? 'Admin' : 'Cierre'}</span>
           </a>}
 
           <details className="register-details relative hidden lg:block">

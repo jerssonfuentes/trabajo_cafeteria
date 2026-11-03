@@ -3,6 +3,7 @@ import { useState } from "react";
 import { AdminShell } from "./components/adminShell";
 import { BalancesSection } from "./sections/balancesSection";
 import { CashRegistersSection } from "./sections/cashRegistersSection";
+import { CashCloseSection } from "./sections/cashCloseSection";
 import { DashboardSection } from "./sections/dashboardSection";
 import { ReportsSection } from "./sections/reportsSection";
 import { SalesSection } from "./sections/salesSection";
@@ -19,6 +20,7 @@ const sectionPermissions: Record<AdministrationSection, Permission> = {
   students: "student:read",
   balances: "student:read",
   inventory: "inventory:read",
+  closure: "cash-register:close",
   users: "admin:access",
   registers: "admin:access",
   sales: "sales:read",
@@ -34,7 +36,8 @@ export function AdministrationPage() {
   ) && can(sectionPermissions[section]);
   const firstAllowed = (Object.keys(sectionPermissions) as AdministrationSection[]).find(visible) ?? "students";
   const [activeSection, setActiveSection] = useState<AdministrationSection>(() => {
-    const requested = window.location.hash.startsWith("#/admin/students") ? "students" : "dashboard";
+    const route = window.location.hash.split("?")[0] ?? "";
+    const requested = route.startsWith("#/admin/closure") ? "closure" : route.startsWith("#/admin/students") ? "students" : "dashboard";
     return visible(requested) ? requested : firstAllowed;
   });
 
@@ -45,6 +48,7 @@ export function AdministrationPage() {
     inventory: <InventorySection />,
     users: <UsersSection />,
     registers: <CashRegistersSection />,
+    closure: <CashCloseSection />,
     sales: <SalesSection />,
     reports: <ReportsSection />,
     settings: <SettingsSection />,

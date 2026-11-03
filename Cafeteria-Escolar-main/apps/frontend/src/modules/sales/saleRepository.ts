@@ -32,6 +32,18 @@ export interface CashRegisterSummary {
   cashTotal: number
 }
 
+export interface RegisterCloseTransaction {
+  id: string
+  occurredAt: string
+  kind: 'sale' | 'abono'
+  concept: string
+  customer?: string
+  paymentMethod?: RegisteredSale['paymentMethod']
+  status?: RegisteredSale['status']
+  amount: number
+  items: Array<{ productName: string; unitPrice: number; quantity: number; lineTotal: number }>
+}
+
 export const SALES_CHANGED_EVENT = 'cafeteria:sales-changed'
 
 export interface SaleRegistrationResult {
@@ -167,4 +179,52 @@ export async function listCashRegisterSummaries() {
     voidedSales: row.sales.filter((sale) => sale.status === 'voided').length,
     cashTotal: row.sales.filter((sale) => sale.status === 'completed' && sale.payment_method === 'cash').reduce((sum, sale) => sum + sale.total_amount, 0),
   }))
+}
+
+export async function listRegisterCloseTransactions(registerId: string, from: string, until: string) {
+  const client = requireSupabase()
+  const [salesResult, movementsResult] = await Promise.all([
+    client.from('sales').select(`
+      id,occurred_at,total_amount,payment_method,status,
+      sale_items(product_name,unit_price,quantity,line_total),
+      students(first_name,last_name)
+    `).eq('cash_register_id', registerId).gte('occurred_at', from).lt('occurred_at', until)
+      .order('occurred_at', { ascending: false }).limit(1000),
+    client.from('student_movements').select('id,occurred_at,type,amount,detail,students(first_name,last_name)')
+      .eq('cash_register_id', registerId).in('type', ['top-up', 'debt-payment'])
+      .gte('occurred_at', from).lt('occurred_at', until)
+      .order('occurred_at', { ascending: false }).limit(1000),
+  ])
+  if (salesResult.error) throw new Error('No fue posible consultar las ventas de esta caja.')
+  if (movementsResult.error) throw new Error('No fue posible consultar los abonos de esta caja.')
+
+  const sales = (salesResult.data ?? []).map((row) => {
+    const sale = row as unknown as {
+      id: string; occurred_at: string; total_amount: number; payment_method: RegisteredSale['paymentMethod']; status: RegisteredSale['status'];
+      sale_items: Array<{ product_name: string; unit_price: number; quantity: number; line_total: number }>;
+      students: { first_name: string; last_name: string } | Array<{ first_name: string; last_name: string }> | null;
+    }
+    const student = Array.isArray(sale.students) ? sale.students[0] : sale.students
+    return {
+      id: sale.id, occurredAt: sale.occurred_at, kind: 'sale' as const,
+      concept: sale.payment_method === 'cash' ? 'Venta en efectivo' : 'Consumo a estudiante',
+      customer: student ? `${student.first_name} ${student.last_name}` : 'Venta libre',
+      paymentMethod: sale.payment_method, status: sale.status, amount: sale.total_amount,
+      items: sale.sale_items.map((item) => ({ productName: item.product_name, unitPrice: item.unit_price, quantity: item.quantity, lineTotal: item.line_total })),
+    }
+  })
+  const movements = (movementsResult.data ?? []).map((row) => {
+    const movement = row as unknown as {
+      id: string; occurred_at: string; type: 'top-up' | 'debt-payment'; amount: number; detail: string;
+      students: { first_name: string; last_name: string } | Array<{ first_name: string; last_name: string }> | null;
+    }
+    const student = Array.isArray(movement.students) ? movement.students[0] : movement.students
+    return {
+      id: movement.id, occurredAt: movement.occurred_at, kind: 'abono' as const,
+      concept: movement.type === 'debt-payment' ? 'Abono a deuda' : 'Recarga de saldo',
+      customer: student ? `${student.first_name} ${student.last_name}` : undefined,
+      amount: movement.amount, items: [{ productName: movement.detail, unitPrice: movement.amount, quantity: 1, lineTotal: movement.amount }],
+    }
+  })
+  return [...sales, ...movements].sort((a, b) => b.occurredAt.localeCompare(a.occurredAt)) satisfies RegisterCloseTransaction[]
 }

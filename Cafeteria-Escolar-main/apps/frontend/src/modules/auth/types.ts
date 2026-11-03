@@ -5,6 +5,7 @@ export type Permission =
   | 'pos:access'
   | 'pos:charge'
   | 'cash-register:own'
+  | 'cash-register:close'
   | 'student:read'
   | 'student:write'
   | 'student:abono'
@@ -18,6 +19,7 @@ export const APP_PERMISSIONS: ReadonlyArray<{ id: Permission; label: string; des
   { id: 'pos:access', label: 'Punto de venta', description: 'Abrir la caja y consultar productos.', group: 'Caja' },
   { id: 'pos:charge', label: 'Registrar ventas y consumos', description: 'Cobrar ventas y cargar consumos a estudiantes.', group: 'Caja' },
   { id: 'cash-register:own', label: 'Usar caja asignada', description: 'Operar con la caja vinculada al usuario.', group: 'Caja' },
+  { id: 'cash-register:close', label: 'Consultar y cerrar caja', description: 'Revisar transacciones, productos y totales de la caja asignada.', group: 'Caja' },
   { id: 'student:read', label: 'Consultar estudiantes y saldos', description: 'Buscar estudiantes y revisar su cuenta.', group: 'Estudiantes' },
   { id: 'student:abono', label: 'Registrar abonos y recargas', description: 'Recibir pagos y sumarlos a la cuenta del estudiante.', group: 'Estudiantes' },
   { id: 'student:write', label: 'Administrar estudiantes', description: 'Crear, editar y activar estudiantes.', group: 'Estudiantes' },

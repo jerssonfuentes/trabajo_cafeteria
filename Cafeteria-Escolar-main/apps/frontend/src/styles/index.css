@@ -611,6 +611,18 @@ body { font-family: Inter, Aptos, "Segoe UI", system-ui, sans-serif; letter-spac
 
 /* Administración e inventario */
 .admin-shell { color: var(--cafe-ink); background: #f6f5ef !important; }
+
+@media print {
+  body.printing-close-report { background: #fff !important; }
+  body.printing-close-report .admin-shell aside,
+  body.printing-close-report .admin-shell > div > header,
+  body.printing-close-report .no-print { display: none !important; }
+  body.printing-close-report .admin-content { overflow: visible !important; padding: 0 !important; }
+  body.printing-close-report .admin-content > div { display: none !important; }
+  body.printing-close-report .admin-content > div:has(.cash-close-report) { display: block !important; }
+  body.printing-close-report .cash-close-report { display: block !important; max-width: none !important; padding: 0 !important; }
+  body.printing-close-report .print-only { display: block !important; }
+}
 .admin-sidebar { background: #184e3d !important; box-shadow: 5px 0 22px rgb(21 55 42 / 8%); }
 .admin-sidebar .bg-white\/15 { color: #184e3d; background: #f6bd60; }
 .admin-sidebar nav button[aria-current="page"] { color: #184e3d !important; background: #fff9ec !important; box-shadow: 0 4px 12px rgb(13 47 34 / 15%); }

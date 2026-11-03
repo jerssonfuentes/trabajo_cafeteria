@@ -2,7 +2,7 @@ import type { AppRole, Permission } from './types'
 
 const rolePermissions: Record<AppRole, ReadonlySet<Permission>> = {
   administrator: new Set<Permission>(['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:write', 'student:abono', 'inventory:read', 'inventory:write', 'sales:read', 'reports:read']),
-  cashier: new Set<Permission>(['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read']),
+  cashier: new Set<Permission>(['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'cash-register:close', 'student:read', 'student:abono', 'sales:read']),
   inventory: new Set<Permission>(['inventory:read', 'inventory:write', 'student:read']),
 }
 

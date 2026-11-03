@@ -36,7 +36,7 @@ function emptyEditor(): UserEditor {
     cashRegisterId: null,
     categoryAccessRestricted: false,
     allowedCategoryIds: [],
-    permissions: ['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read'],
+    permissions: ['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'cash-register:close', 'student:read', 'student:abono', 'sales:read'],
   }
 }
 
@@ -80,8 +80,8 @@ export function UsersSection() {
 
   async function save() {
     if (!editor) return
-    if (editor.role === 'cashier' && !editor.cashRegisterId) {
-      setError('Asigna una caja activa a cada cajero.')
+    if (!editor.cashRegisterId) {
+      setError('Asigna una caja activa a cada usuario.')
       return
     }
     if (editor.categoryAccessRestricted && editor.active && editor.allowedCategoryIds.length === 0) {
@@ -95,6 +95,10 @@ export function UsersSection() {
       ['student:write', 'student:read'],
       ['inventory:write', 'inventory:read'],
       ['student:abono', 'pos:access'],
+      ['cash-register:close', 'cash-register:own'],
+      ['cash-register:close', 'admin:access'],
+      ['cash-register:close', 'sales:read'],
+      ['cash-register:close', 'student:read'],
     ]
     const missingPermission = permissionNeeds.find(([permission, prerequisite]) =>
       editor.permissions.includes(permission) && !editor.permissions.includes(prerequisite),
@@ -149,14 +153,14 @@ export function UsersSection() {
   function rolePermissionDefaults(nextRole: ManagedRole): Permission[] {
     if (nextRole === 'administrator') return APP_PERMISSIONS.map(({ id }) => id)
     if (nextRole === 'inventory') return ['inventory:read', 'inventory:write', 'student:read']
-    return ['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read']
+    return ['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'cash-register:close', 'student:read', 'student:abono', 'sales:read']
   }
 
   function rolePermissions(nextRole: ManagedRole) {
     if (nextRole === 'administrator') return APP_PERMISSIONS
     return APP_PERMISSIONS.filter(({ id }) => nextRole === 'cashier'
       ? !id.startsWith('inventory:')
-      : !id.startsWith('pos:') && id !== 'cash-register:own' && id !== 'student:abono')
+      : !id.startsWith('pos:') && id !== 'student:abono')
   }
 
   return (
@@ -223,8 +227,8 @@ export function UsersSection() {
           <label className="admin-field">Nombre completo<input className="admin-input" autoComplete="name" onChange={(event) => setEditor({ ...editor, displayName: event.target.value })} value={editor.displayName} /></label>
           <label className="admin-field">Correo electrónico<input className="admin-input" autoComplete="email" onChange={(event) => setEditor({ ...editor, email: event.target.value })} type="email" value={editor.email} /></label>
           <label className="admin-field">{editor.id ? 'Nueva contraseña (opcional)' : 'Contraseña inicial'}<input className="admin-input" autoComplete="new-password" minLength={8} onChange={(event) => setEditor({ ...editor, password: event.target.value })} required={!editor.id} type="password" value={editor.password} /></label>
-          <label className="admin-field">Rol<select className="admin-select" onChange={(event) => { const nextRole = event.target.value as ManagedRole; setEditor({ ...editor, role: nextRole, permissions: rolePermissionDefaults(nextRole), cashRegisterId: nextRole === 'cashier' ? editor.cashRegisterId : null }) }} value={editor.role}>{roleValues.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-          {editor.role === 'cashier' && <label className="admin-field">Caja asignada<select className="admin-select" onChange={(event) => setEditor({ ...editor, cashRegisterId: event.target.value || null })} value={editor.cashRegisterId ?? ''}><option value="">Selecciona una caja</option>{registers.filter((register) => register.active).map((register) => <option key={register.id} value={register.id}>{register.name}</option>)}</select></label>}
+          <label className="admin-field">Rol<select className="admin-select" onChange={(event) => { const nextRole = event.target.value as ManagedRole; setEditor({ ...editor, role: nextRole, permissions: rolePermissionDefaults(nextRole) }) }} value={editor.role}>{roleValues.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="admin-field">Caja asignada<select className="admin-select" onChange={(event) => setEditor({ ...editor, cashRegisterId: event.target.value || null })} value={editor.cashRegisterId ?? ''}><option value="">Selecciona una caja</option>{registers.filter((register) => register.active).map((register) => <option key={register.id} value={register.id}>{register.name}</option>)}</select></label>
           <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-bold sm:col-span-2"><input checked={editor.active} onChange={(event) => setEditor({ ...editor, active: event.target.checked })} type="checkbox" />Cuenta activa</label>
           {editor.role !== 'administrator' && <fieldset className="sm:col-span-2">
             <legend className="mb-2 text-sm font-black text-slate-800">Permisos por módulo y operación</legend>

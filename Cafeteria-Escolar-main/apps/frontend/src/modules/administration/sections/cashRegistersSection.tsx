@@ -19,6 +19,12 @@ interface RegisterEditor {
   userId: string
 }
 
+const roleLabels: Record<ManagedUser['role'], string> = {
+  administrator: 'Administrador',
+  cashier: 'Cajero',
+  inventory: 'Inventarios',
+}
+
 function blankEditor(): RegisterEditor {
   return { name: '', active: true, userId: '' }
 }
@@ -41,7 +47,7 @@ export function CashRegistersSection() {
       ])
       const summaryById = new Map(summaries.map((summary) => [summary.id, summary]))
       setRegisters(managed.map((register) => ({ ...register, ...summaryById.get(register.id) })))
-      setCashiers(users.filter((user) => user.active && user.role === 'cashier'))
+      setCashiers(users.filter((user) => user.active))
       setError('')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible cargar las cajas.')
@@ -107,13 +113,13 @@ export function CashRegistersSection() {
         ))}
       </section>
 
-      <AdminDialog open={Boolean(editor)} title={editor?.id ? 'Editar caja' : 'Crear caja'} description="Puedes asociar un cajero activo a esta caja. El cajero quedará asignado solo a esta caja." onClose={() => !saving && setEditor(null)} size="md" footer={<>
+      <AdminDialog open={Boolean(editor)} title={editor?.id ? 'Editar caja' : 'Crear caja'} description="Asocia un usuario activo. Cada cuenta operativa debe tener una caja asignada." onClose={() => !saving && setEditor(null)} size="md" footer={<>
         <button className="admin-secondary-button" disabled={saving} onClick={() => setEditor(null)} type="button">Cancelar</button>
         <button className="admin-primary-button" disabled={saving} onClick={() => void save()} type="button">{saving ? 'Guardando…' : 'Guardar caja'}</button>
       </>}>
         {editor && <div className="grid gap-4">
           <label className="admin-field">Nombre de la caja<input autoFocus className="admin-input" maxLength={80} onChange={(event) => setEditor({ ...editor, name: event.target.value })} value={editor.name} /></label>
-          <label className="admin-field">Cajero asociado<select className="admin-select" disabled={!editor.active} onChange={(event) => setEditor({ ...editor, userId: event.target.value })} value={editor.userId}><option value="">Sin cambios</option>{cashiers.map((cashier) => <option key={cashier.id} value={cashier.id}>{cashier.displayName} · {cashier.email}</option>)}</select><span className="text-xs font-medium text-slate-500">Al guardar, el usuario seleccionado se asignará a esta caja.</span></label>
+          <label className="admin-field">Usuario asociado<select className="admin-select" disabled={!editor.active} onChange={(event) => setEditor({ ...editor, userId: event.target.value })} value={editor.userId}><option value="">Sin cambios</option>{cashiers.map((cashier) => <option key={cashier.id} value={cashier.id}>{cashier.displayName} · {roleLabels[cashier.role]} · {cashier.email}</option>)}</select><span className="text-xs font-medium text-slate-500">Al guardar, se actualizará la caja asignada a esa cuenta.</span></label>
           <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-bold"><input checked={editor.active} onChange={(event) => setEditor({ ...editor, active: event.target.checked, userId: event.target.checked ? editor.userId : '' })} type="checkbox" />Caja activa</label>
         </div>}
       </AdminDialog>

@@ -7,8 +7,8 @@ const corsHeaders = {
 }
 
 type AppRole = 'administrator' | 'cashier' | 'inventory'
-type Permission = 'admin:access' | 'pos:access' | 'pos:charge' | 'cash-register:own' | 'student:read' | 'student:write' | 'student:abono' | 'inventory:read' | 'inventory:write' | 'sales:read' | 'reports:read'
-const validPermissions = new Set<Permission>(['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:write', 'student:abono', 'inventory:read', 'inventory:write', 'sales:read', 'reports:read'])
+type Permission = 'admin:access' | 'pos:access' | 'pos:charge' | 'cash-register:own' | 'cash-register:close' | 'student:read' | 'student:write' | 'student:abono' | 'inventory:read' | 'inventory:write' | 'sales:read' | 'reports:read'
+const validPermissions = new Set<Permission>(['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'cash-register:close', 'student:read', 'student:write', 'student:abono', 'inventory:read', 'inventory:write', 'sales:read', 'reports:read'])
 
 interface UserInput {
   id?: string
@@ -118,7 +118,7 @@ Deno.serve(async (request) => {
     if (allowedCategoryIds.length > 100) return json({ error: 'Selecciona menos categorías.' }, 400)
     const defaultPermissions: Permission[] = input.role === 'inventory'
       ? ['inventory:read', 'inventory:write', 'student:read']
-      : ['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read']
+      : ['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'cash-register:close', 'student:read', 'student:abono', 'sales:read']
     const permissions = input.role === 'administrator' ? null : Array.isArray(input.permissions)
       ? [...new Set(input.permissions.filter((value): value is Permission => validPermissions.has(value)))]
       : defaultPermissions
@@ -128,7 +128,7 @@ Deno.serve(async (request) => {
     const roleAllowsPermission = (permission: Permission) => input.role === 'cashier'
       ? !permission.startsWith('inventory:')
       : input.role === 'inventory'
-        ? !permission.startsWith('pos:') && permission !== 'cash-register:own' && permission !== 'student:abono'
+        ? !permission.startsWith('pos:') && permission !== 'student:abono'
         : true
     if (permissions && permissions.some((permission) => !roleAllowsPermission(permission))) {
       return json({ error: 'Ese permiso no está disponible para el rol seleccionado.' }, 400)
@@ -140,6 +140,10 @@ Deno.serve(async (request) => {
       ['pos:charge', 'pos:access'], ['student:abono', 'student:read'],
       ['student:abono', 'pos:access'], ['student:write', 'student:read'],
       ['inventory:write', 'inventory:read'],
+      ['cash-register:close', 'cash-register:own'],
+      ['cash-register:close', 'admin:access'],
+      ['cash-register:close', 'sales:read'],
+      ['cash-register:close', 'student:read'],
     ]
     const missingRequirement = requirements.find(([permission, prerequisite]) =>
       permissions?.includes(permission) && !permissions.includes(prerequisite),
@@ -156,15 +160,11 @@ Deno.serve(async (request) => {
     }
 
     let cashRegisterId = input.cashRegisterId || null
-    if (input.role === 'cashier') {
-      if (!cashRegisterId) return json({ error: 'Asigna una caja activa a cada cajero.' }, 400)
-      const { data: register, error: registerError } = await serviceClient.from('cash_registers')
-        .select('id').eq('id', cashRegisterId).eq('active', true).maybeSingle()
-      if (registerError) throw registerError
-      if (!register) return json({ error: 'Selecciona una caja activa.' }, 400)
-    } else if (input.role === 'inventory') {
-      cashRegisterId = null
-    }
+    if (!cashRegisterId) return json({ error: 'Asigna una caja activa a cada usuario.' }, 400)
+    const { data: register, error: registerError } = await serviceClient.from('cash_registers')
+      .select('id').eq('id', cashRegisterId).eq('active', true).maybeSingle()
+    if (registerError) throw registerError
+    if (!register) return json({ error: 'Selecciona una caja activa.' }, 400)
 
     if (body.action === 'create') {
       const email = input.email?.trim().toLowerCase() ?? ''
