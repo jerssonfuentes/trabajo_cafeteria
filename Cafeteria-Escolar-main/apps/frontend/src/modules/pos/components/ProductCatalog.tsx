@@ -78,7 +78,8 @@ export function ProductCatalog({
 
       <div className="product-grid mt-1 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 pb-1" aria-live="polite">
         {filteredProducts.map((product) => {
-          const Icon = product.icon
+          const productCategory = categories.find(({ id }) => id === product.category)
+          const Icon = productCategory?.icon ?? product.icon
           const outOfStock = product.stockQuantity !== undefined && product.stockQuantity <= 0
           return (
             <button
@@ -89,14 +90,12 @@ export function ProductCatalog({
               onClick={() => onAddProduct(product)}
               type="button"
             >
-              <span className="product-card-icon-wrap">
-                <span className={`product-card-icon ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={30} strokeWidth={1.9} /></span>
-                <span className="product-card-add" aria-hidden="true">+</span>
-              </span>
+              <span className={`product-card-icon ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={28} strokeWidth={1.9} /></span>
               <span className="product-card-info">
                 <span className="product-card-name">{product.shortName}</span>
-                <span className="product-card-bottom"><strong>{formatCurrency(product.price)}</strong>{product.stockQuantity !== undefined && <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>{outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}</span>}</span>
+                <span className="product-card-category">{productCategory?.label ?? 'Producto'}</span>
               </span>
+              <span className="product-card-side"><strong>{formatCurrency(product.price)}</strong>{product.stockQuantity !== undefined && <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>{outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}</span>}<span className="product-card-add" aria-hidden="true">+</span></span>
             </button>
           )
         })}
