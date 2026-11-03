@@ -1005,3 +1005,9 @@ html, body { background: #f4f4f8; color: #282638; }
   }
 }
 
+/* Mantiene el título de categorías con contraste suficiente sobre el rail oscuro. */
+.catalog-category-title h2 {
+  color: #f7f5ff !important;
+  text-shadow: 0 1px 1px rgb(0 0 0 / 18%);
+}
+
