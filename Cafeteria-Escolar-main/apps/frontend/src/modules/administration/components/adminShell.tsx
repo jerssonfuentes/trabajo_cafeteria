@@ -8,12 +8,12 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  MonitorCog,
   PanelLeftClose,
   Settings,
   ShieldCheck,
   ShoppingBag,
   Store,
+  Utensils,
   Users,
   UsersRound,
   Wifi,
@@ -125,11 +125,11 @@ export function AdminShell({
       >
         <div className="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-4 lg:justify-center lg:px-2 xl:justify-start xl:px-5">
           <div className="grid size-11 shrink-0 place-items-center rounded-xl bg-white/15">
-            <MonitorCog aria-hidden="true" className="size-7" />
+            <Utensils aria-hidden="true" className="size-7" />
           </div>
           <div className="min-w-0 lg:hidden xl:block">
             <strong className="block truncate text-lg font-black">
-              Cafetería Escolar
+              Café·Escuela
             </strong>
             <span className="text-xs font-semibold text-blue-200">
               Administración

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { ArrowRight, Eye, EyeOff, Mail, LockKeyhole } from 'lucide-react'
 
 import { useAuth } from './AuthProvider'
 
@@ -18,11 +19,12 @@ export function LoginForm() {
     finally { setBusy(false) }
   }
 
-  return <form className="mt-5 grid gap-3 text-left" onSubmit={submit}>
-    <label className="admin-field">Correo institucional<input autoCapitalize="none" autoComplete="username" className="admin-input" onChange={(event) => setEmail(event.target.value)} required spellCheck={false} type="email" value={email} /></label>
-    <label className="admin-field">Contraseña<input autoComplete="current-password" className="admin-input" onChange={(event) => setPassword(event.target.value)} required spellCheck={false} type={showPassword ? 'text' : 'password'} value={password} /></label>
-    <label className="flex min-h-11 items-center gap-2 text-sm font-bold text-slate-600"><input checked={showPassword} className="size-4" onChange={(event) => setShowPassword(event.target.checked)} type="checkbox" />Mostrar contraseña</label>
-    {error && <p className="text-sm font-bold text-rose-700" role="alert">{error}</p>}
-    <button className="admin-primary-button justify-center" disabled={busy} type="submit">{busy ? 'Verificando…' : 'Ingresar'}</button>
+  return <form className="login-form" onSubmit={submit}>
+    <label className="login-label" htmlFor="login-email">Correo electrónico</label>
+    <div className="login-input-wrap"><Mail aria-hidden="true" size={18} /><input autoCapitalize="none" autoComplete="username" id="login-email" onChange={(event) => setEmail(event.target.value)} placeholder="nombre@institucion.edu" required spellCheck={false} type="email" value={email} /></div>
+    <label className="login-label login-password-label" htmlFor="login-password">Contraseña</label>
+    <div className="login-input-wrap"><LockKeyhole aria-hidden="true" size={18} /><input autoComplete="current-password" id="login-password" onChange={(event) => setPassword(event.target.value)} placeholder="Escribe tu contraseña" required spellCheck={false} type={showPassword ? 'text' : 'password'} value={password} /><button aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'} className="login-password-toggle" onClick={() => setShowPassword((shown) => !shown)} type="button">{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button></div>
+    {error && <p className="login-error" role="alert">{error}</p>}
+    <button className="login-submit" disabled={busy} type="submit">{busy ? 'Verificando acceso…' : 'Entrar a la cafetería'}{!busy && <ArrowRight size={19} />}</button>
   </form>
 }

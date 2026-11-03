@@ -1,24 +1,54 @@
-import { LockKeyhole, ShieldAlert } from 'lucide-react'
+import { ArrowRight, BadgeCheck, Coffee, ShieldAlert, Sparkles, Utensils } from 'lucide-react'
 
 import { canAccessRoute, defaultRouteFor, type ProtectedRoute } from './authorization'
 import { useAuth } from './AuthProvider'
 import { LoginForm } from './LoginForm'
 
+const foodPhotos = [
+  '/food/bakery.jpg',
+  '/food/burger.jpg',
+  '/food/pizza.jpg',
+]
+
 export function AuthGate({ route, children }: { route: ProtectedRoute; children: React.ReactNode }) {
   const { session, status, error, refresh } = useAuth()
 
-  if (status === 'loading') return <AuthMessage title="Verificando sesión" detail="Conectando con el servicio seguro de identidad…" />
-  if (status === 'unconfigured') return <AuthMessage title="Supabase pendiente de configurar" detail="Define la URL del proyecto y su clave publicable. La interfaz permanecerá bloqueada hasta entonces." warning />
-  if (status === 'error') return <AuthMessage title="No se pudo validar la sesión" detail={error} action={<button className="admin-primary-button" onClick={() => void refresh()} type="button">Reintentar</button>} warning />
-  if (status === 'unauthenticated' || !session) return <AuthMessage title="Inicia sesión" detail="Usa la cuenta institucional creada en Supabase Auth." action={<LoginForm />} />
+  if (status === 'loading') return <AuthMessage title="Preparando tu espacio" detail="Conectando de forma segura con la cafetería…" />
+  if (status === 'unconfigured') return <AuthMessage title="Supabase pendiente de configurar" detail="Define la URL del proyecto y su clave publicable en las variables de entorno de Vercel." warning />
+  if (status === 'error') return <AuthMessage title="No pudimos validar la sesión" detail={error} action={<button className="admin-primary-button" onClick={() => void refresh()} type="button">Reintentar <ArrowRight size={17} /></button>} warning />
+  if (status === 'unauthenticated' || !session) return <LoginScreen />
   if (!canAccessRoute(session.user.role, route)) {
     const allowedRoute = defaultRouteFor(session.user.role)
-    return <AuthMessage title="Acceso restringido" detail="Tu rol no tiene permiso para abrir esta sección." action={<a className="admin-primary-button" href={`#/${allowedRoute}`}>Ir a mi área</a>} warning />
+    return <AuthMessage title="Acceso restringido" detail="Tu perfil no tiene permiso para entrar a esta sección." warning action={<a className="admin-primary-button" href={`#/${allowedRoute}`}>Ir a mi área <ArrowRight size={17} /></a>} />
   }
   return children
 }
 
+function LoginScreen() {
+  return <main className="login-screen">
+    <section className="login-visual" aria-label="Bienvenido a la cafetería escolar">
+      <div className="login-brand"><div className="login-brand-mark"><Utensils size={23} strokeWidth={2.6} /></div><div><strong>CAFÉ<span>·</span>ESCUELA</strong><small>Comandas con cariño</small></div></div>
+      <div className="login-copy"><span className="login-eyebrow"><Sparkles size={14} /> SABORES QUE ACOMPAÑAN</span><h1>Un recreo rico<br />empieza aquí.</h1><p>La forma sencilla y cercana de atender cada pedido de nuestra comunidad escolar.</p></div>
+      <div className="login-photo-grid" aria-hidden="true">
+        {foodPhotos.map((src, index) => <div className={`login-food-photo login-food-photo-${index + 1}`} key={src}><img src={src} alt="" /></div>)}
+        <div className="login-photo-note"><Coffee size={17} /><span>Hecho para el día a día</span></div>
+      </div>
+      <div className="login-visual-footer"><span>Fresco, rápido y siempre con una sonrisa.</span><span className="login-dots"><i /><i /><i /></span></div>
+    </section>
+    <section className="login-form-side">
+      <div className="login-form-wrap">
+        <div className="login-mobile-brand"><div className="login-brand-mark"><Utensils size={22} /></div><strong>CAFÉ<span>·</span>ESCUELA</strong></div>
+        <div className="login-heading"><span className="login-welcome">Bienvenido de vuelta</span><h2>Iniciar sesión</h2><p>Ingresa con tu cuenta del equipo de cafetería.</p></div>
+        <LoginForm />
+        <div className="login-security"><BadgeCheck size={17} /><span>Acceso protegido y administrado por tu institución.</span></div>
+        <p className="login-help">¿Necesitas una cuenta? Solicítala al administrador de la cafetería.</p>
+      </div>
+      <footer className="login-footer">CAFÉ·ESCUELA <span>·</span> Gestión de cafetería escolar</footer>
+    </section>
+  </main>
+}
+
 function AuthMessage({ title, detail, action, warning = false }: { title: string; detail: string; action?: React.ReactNode; warning?: boolean }) {
-  const Icon = warning ? ShieldAlert : LockKeyhole
-  return <main className="grid min-h-dvh place-items-center bg-slate-100 p-4"><section className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-xl"><div className={`mx-auto grid size-14 place-items-center rounded-full ${warning ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}><Icon aria-hidden="true" className="size-7" /></div><h1 className="mt-4 text-2xl font-black text-slate-950">{title}</h1><p className="mt-2 text-sm font-semibold text-slate-600">{detail}</p>{action && <div className="mt-5 block">{action}</div>}<p className="mt-5 text-xs text-slate-400">La autorización se valida con Supabase Auth y políticas RLS.</p></section></main>
+  const Icon = warning ? ShieldAlert : BadgeCheck
+  return <main className="auth-status-page"><section className="auth-status-card"><div className={`auth-status-icon ${warning ? 'is-warning' : ''}`}><Icon aria-hidden="true" size={28} /></div><span className="login-welcome">CAFÉ·ESCUELA</span><h1>{title}</h1><p>{detail}</p>{action && <div className="auth-status-action">{action}</div>}<small>La autorización se valida con Supabase Auth y políticas RLS.</small></section></main>
 }

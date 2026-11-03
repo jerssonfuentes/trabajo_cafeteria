@@ -3,6 +3,14 @@ import type { LucideIcon } from 'lucide-react'
 import { formatCurrency } from '../format'
 import type { Product } from '../types'
 
+const productImages: Record<string, string> = {
+  bebidas: '/food/drinks.jpg',
+  paquetes: '/food/fries.jpg',
+  pasteles: '/food/pastry.jpg',
+  panaderia: '/food/bakery.jpg',
+  rapidos: '/food/burger.jpg',
+}
+
 interface ProductCatalogProps {
   category: string
   subcategory: string
@@ -89,15 +97,14 @@ export function ProductCatalog({
               onClick={() => onAddProduct(product)}
               type="button"
             >
-              <span className="flex w-full items-start justify-between gap-2">
-                <span className="min-w-0 flex-1 text-xs font-extrabold leading-tight text-slate-900 xl:text-[0.8rem]">{product.shortName}</span>
-                <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-white/80 shadow-sm">
-                  <Icon aria-hidden="true" className={`size-4 ${product.iconColor}`} strokeWidth={2.3} />
-                </span>
+              <span className="product-photo-wrap">
+                <span className={`product-photo-fallback ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={31} strokeWidth={1.8} /></span>
+                <img alt="" className="product-photo" loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none' }} src={productImages[product.category] ?? productImages.panaderia} />
+                <span className="product-photo-add" aria-hidden="true">+</span>
               </span>
-              <span className="mt-1 flex w-full flex-col items-start gap-1 border-t border-slate-900/10 pt-1">
-                <span className="text-sm font-black leading-none text-slate-950">{formatCurrency(product.price)}</span>
-                {product.stockQuantity !== undefined && <span className={`text-[0.7rem] font-black leading-none ${outOfStock ? 'text-rose-600' : 'text-emerald-700'}`}>{outOfStock ? 'Agotado' : `Stock: ${product.stockQuantity}`}</span>}
+              <span className="product-card-info">
+                <span className="product-card-name">{product.shortName}</span>
+                <span className="product-card-bottom"><strong>{formatCurrency(product.price)}</strong>{product.stockQuantity !== undefined && <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>{outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}</span>}</span>
               </span>
             </button>
           )
