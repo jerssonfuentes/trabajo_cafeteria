@@ -63,7 +63,7 @@ export function CartPanel({
           type="button"
         >
           <Trash2 aria-hidden="true" className="size-4" />
-          <span className="hidden sm:inline">Limpiar todo</span>
+          <span className="hidden min-[420px]:inline">Limpiar todo</span>
         </button>
       </div>
 
