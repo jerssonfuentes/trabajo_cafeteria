@@ -7,6 +7,8 @@ const corsHeaders = {
 }
 
 type AppRole = 'administrator' | 'cashier' | 'inventory'
+type Permission = 'admin:access' | 'pos:access' | 'pos:charge' | 'cash-register:own' | 'student:read' | 'student:write' | 'student:abono' | 'inventory:read' | 'inventory:write' | 'sales:read' | 'reports:read'
+const validPermissions = new Set<Permission>(['admin:access', 'pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:write', 'student:abono', 'inventory:read', 'inventory:write', 'sales:read', 'reports:read'])
 
 interface UserInput {
   id?: string
@@ -18,6 +20,7 @@ interface UserInput {
   cashRegisterId?: string | null
   categoryAccessRestricted?: boolean
   allowedCategoryIds?: string[]
+  permissions?: Permission[]
 }
 
 function json(body: unknown, status = 200) {
@@ -69,7 +72,7 @@ Deno.serve(async (request) => {
     if (body.action === 'list') {
       const [{ data: profiles, error: usersError }, authUsers] = await Promise.all([
         serviceClient.from('profiles')
-          .select('user_id,display_name,role,cash_register_id,active,category_access_restricted,allowed_category_ids,cash_registers(name)')
+          .select('user_id,display_name,role,cash_register_id,active,category_access_restricted,allowed_category_ids,allowed_permissions,cash_registers(name)')
           .order('display_name'),
         (async () => {
           const allUsers = []
@@ -98,6 +101,7 @@ Deno.serve(async (request) => {
           cashRegisterName: register?.name ?? null,
           categoryAccessRestricted: profile.category_access_restricted,
           allowedCategoryIds: profile.allowed_category_ids ?? [],
+          permissions: profile.allowed_permissions ?? null,
           lastSignInAt: authUser.last_sign_in_at ?? null,
         }]
       }))
@@ -112,6 +116,38 @@ Deno.serve(async (request) => {
       ? [...new Set(input.allowedCategoryIds.filter((value) => typeof value === 'string'))]
       : []
     if (allowedCategoryIds.length > 100) return json({ error: 'Selecciona menos categorías.' }, 400)
+    const defaultPermissions: Permission[] = input.role === 'inventory'
+      ? ['inventory:read', 'inventory:write', 'student:read']
+      : ['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read']
+    const permissions = input.role === 'administrator' ? null : Array.isArray(input.permissions)
+      ? [...new Set(input.permissions.filter((value): value is Permission => validPermissions.has(value)))]
+      : defaultPermissions
+    if (Array.isArray(input.permissions) && permissions.length !== new Set(input.permissions).size) {
+      return json({ error: 'Uno o más permisos seleccionados no son válidos.' }, 400)
+    }
+    const roleAllowsPermission = (permission: Permission) => input.role === 'cashier'
+      ? !permission.startsWith('inventory:')
+      : input.role === 'inventory'
+        ? !permission.startsWith('pos:') && permission !== 'cash-register:own' && permission !== 'student:abono'
+        : true
+    if (permissions && permissions.some((permission) => !roleAllowsPermission(permission))) {
+      return json({ error: 'Ese permiso no está disponible para el rol seleccionado.' }, 400)
+    }
+    if (input.role === 'cashier' && permissions.includes('pos:access') && !permissions.includes('cash-register:own')) {
+      return json({ error: 'Para abrir el punto de venta, asigna también permiso de uso de caja.' }, 400)
+    }
+    const requirements: Array<[Permission, Permission]> = [
+      ['pos:charge', 'pos:access'], ['student:abono', 'student:read'],
+      ['student:abono', 'pos:access'], ['student:write', 'student:read'],
+      ['inventory:write', 'inventory:read'],
+    ]
+    const missingRequirement = requirements.find(([permission, prerequisite]) =>
+      permissions?.includes(permission) && !permissions.includes(prerequisite),
+    )
+    if (missingRequirement) return json({ error: `El permiso ${missingRequirement[0]} requiere también ${missingRequirement[1]}.` }, 400)
+    if (permissions && !permissions.some((permission) => ['admin:access', 'pos:access', 'inventory:read'].includes(permission))) {
+      return json({ error: 'Asigna al menos un acceso principal a la cuenta.' }, 400)
+    }
     if (allowedCategoryIds.length > 0) {
       const { data: categories, error: categoriesError } = await serviceClient
         .from('product_categories').select('id').in('id', allowedCategoryIds).eq('active', true)
@@ -152,6 +188,7 @@ Deno.serve(async (request) => {
         cash_register_id: cashRegisterId,
         category_access_restricted: input.categoryAccessRestricted ?? false,
         allowed_category_ids: allowedCategoryIds,
+        allowed_permissions: permissions,
       })
       if (insertError) {
         await serviceClient.auth.admin.deleteUser(createdAuth.user.id)
@@ -193,6 +230,7 @@ Deno.serve(async (request) => {
         cash_register_id: cashRegisterId,
         category_access_restricted: input.categoryAccessRestricted ?? false,
         allowed_category_ids: allowedCategoryIds,
+        allowed_permissions: permissions,
       }).eq('user_id', input.id).select('user_id').maybeSingle()
       if (updateError) throw updateError
       if (!updatedProfile) return json({ error: 'No se encontró el perfil que se va a editar.' }, 404)

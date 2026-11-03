@@ -18,6 +18,7 @@ import { categories as staticCategories, products as staticProducts } from './da
 import { formatCurrency } from './format'
 import type { CartLine, Product, SaleMode, Student } from './types'
 import { CartPanel } from './components/CartPanel'
+import { RegisterAbonoDialog } from './components/RegisterAbonoDialog'
 import { CustomerPanel } from './components/CustomerPanel'
 import { DemoDialog, type DialogKind } from './components/DemoDialog'
 import { FooterStatus } from './components/FooterStatus'
@@ -26,7 +27,7 @@ import { ProductCatalog } from './components/ProductCatalog'
 import { TopBar } from './components/TopBar'
 import { cashSaleSignature, prepareCashPaymentAttempt, studentSaleSignature, type CashPaymentAttempt } from './cashPayment'
 import { useAuth } from '../auth'
-import { createIdempotencyKey, listStudentMovements, splitBalance, useStudents } from '../students'
+import { createIdempotencyKey, listStudentMovements, registerMovement, splitBalance, useStudents } from '../students'
 import { registerCashSale, registerStudentSale } from '../sales'
 import { useInventory } from '../inventory'
 
@@ -67,6 +68,8 @@ export function PosPage() {
   const [cart, setCart] = useState<CartLine[]>(initialCart)
   const [undoStack, setUndoStack] = useState<CartLine[][]>([])
   const [paymentBusy, setPaymentBusy] = useState(false)
+  const [abonoBusy, setAbonoBusy] = useState(false)
+  const [abonoOpen, setAbonoOpen] = useState(false)
   const [studentQuery, setStudentQuery] = useState('')
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
   const [dialog, setDialog] = useState<DialogState>(closedDialog)
@@ -270,12 +273,34 @@ export function PosPage() {
 
   function goToRegisterPayment() {
     if (!selectedStudent) return
-    if (!can('admin:access')) {
-      showDemoNotice('Permiso requerido', 'Solo un administrador puede registrar recargas o abonos. Contacta al administrador de la cafetería.')
+    if (!can('student:abono')) {
+      showDemoNotice('Permiso requerido', 'Tu usuario no tiene permiso para registrar abonos. Contacta al administrador de la cafetería.')
       return
     }
+    if (!can('admin:access')) { setAbonoOpen(true); return }
     const params = new URLSearchParams({ studentId: selectedStudent.accountId, action: 'abono' })
     window.location.hash = `/admin/students?${params.toString()}`
+  }
+
+  async function submitAbono(amount: number, detail: string) {
+    if (!selectedStudent || !session || amount <= 0 || abonoBusy) return
+    setAbonoBusy(true)
+    try {
+      const movement = await registerMovement({
+        studentId: selectedStudent.accountId,
+        type: selectedStudent.debt > 0 ? 'debt-payment' : 'top-up',
+        value: amount,
+        detail: detail.trim(),
+        responsible: session.user.displayName,
+        idempotencyKey: createIdempotencyKey('pos-abono'),
+      })
+      setAbonoOpen(false)
+      setDialog({ kind: 'notice', title: 'Abono registrado', message: `${formatCurrency(movement.amount)} recibido para ${selectedStudent.name}.` })
+    } catch (cause) {
+      setDialog({ kind: 'notice', title: 'No se registró el abono', message: cause instanceof Error ? cause.message : 'Intenta nuevamente.' })
+    } finally {
+      setAbonoBusy(false)
+    }
   }
 
   return (
@@ -336,6 +361,7 @@ export function PosPage() {
         onClose={() => setDialog(closedDialog)}
         title={dialog.title}
       />
+      {abonoOpen && selectedStudent && <RegisterAbonoDialog busy={abonoBusy} onClose={() => setAbonoOpen(false)} onSubmit={submitAbono} student={selectedStudent} />}
     </div>
   )
 }

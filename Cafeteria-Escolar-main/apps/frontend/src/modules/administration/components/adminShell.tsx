@@ -29,18 +29,19 @@ interface NavigationItem {
   id: AdministrationSection;
   label: string;
   icon: LucideIcon;
+  permission: import('../../auth/types').Permission | 'admin:access'
 }
 
 const navigation: NavigationItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "students", label: "Estudiantes", icon: UsersRound },
-  { id: "balances", label: "Saldos y deudas", icon: CircleDollarSign },
-  { id: "inventory", label: "Inventarios", icon: Boxes },
-  { id: "users", label: "Usuarios y cajeros", icon: ShieldCheck },
-  { id: "registers", label: "Cajas", icon: Store },
-  { id: "sales", label: "Ventas", icon: ShoppingBag },
-  { id: "reports", label: "Reportes", icon: FileChartColumn },
-  { id: "settings", label: "Configuración", icon: Settings },
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "reports:read" },
+  { id: "students", label: "Estudiantes", icon: UsersRound, permission: "student:read" },
+  { id: "balances", label: "Saldos y deudas", icon: CircleDollarSign, permission: "student:read" },
+  { id: "inventory", label: "Inventarios", icon: Boxes, permission: "inventory:read" },
+  { id: "users", label: "Usuarios y cajeros", icon: ShieldCheck, permission: "admin:access" },
+  { id: "registers", label: "Cajas", icon: Store, permission: "admin:access" },
+  { id: "sales", label: "Ventas", icon: ShoppingBag, permission: "sales:read" },
+  { id: "reports", label: "Reportes", icon: FileChartColumn, permission: "reports:read" },
+  { id: "settings", label: "Configuración", icon: Settings, permission: "admin:access" },
 ];
 
 interface AdminShellProps {
@@ -61,7 +62,11 @@ export function AdminShell({
   );
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
-  const { session, logout } = useAuth();
+  const { session, logout, can } = useAuth();
+  const permittedNavigation = navigation.filter(({ id, permission }) =>
+    (session?.user.role === "administrator" || !["users", "registers", "settings"].includes(id))
+    && can(permission),
+  );
   const activeItem = navigation.find((item) => item.id === activeSection);
 
   useEffect(() => {
@@ -150,7 +155,7 @@ export function AdminShell({
           aria-label="Navegación administrativa"
           id="admin-navigation"
         >
-          {navigation.map(({ id, label, icon: Icon }) => (
+          {permittedNavigation.map(({ id, label, icon: Icon }) => (
             <button
               aria-current={activeSection === id ? "page" : undefined}
               className={`flex min-h-12 w-full min-w-0 items-center gap-3 rounded-xl px-3 text-left text-sm font-bold transition lg:justify-center lg:px-2 xl:justify-start xl:px-3 ${activeSection === id ? "bg-white text-blue-800 shadow-md" : "text-blue-100 hover:bg-white/10 hover:text-white"}`}
@@ -199,7 +204,7 @@ export function AdminShell({
               {session?.user.displayName}
             </p>
             <p className="hidden truncate text-xs font-semibold text-slate-500 sm:block">
-              Administrador · Sesión verificada por Supabase
+              {session?.user.role === "administrator" ? "Administrador" : session?.user.role === "cashier" ? "Cajero" : "Inventarios"} · Sesión verificada por Supabase
             </p>
           </div>
           <div className="hidden items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600 sm:flex">

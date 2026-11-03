@@ -17,8 +17,8 @@ export function AuthGate({ route, children }: { route: ProtectedRoute; children:
   if (status === 'unconfigured') return <AuthMessage title="Supabase pendiente de configurar" detail="Define la URL del proyecto y su clave publicable en las variables de entorno de Vercel." warning />
   if (status === 'error') return <AuthMessage title="No pudimos validar la sesión" detail={error} action={<button className="admin-primary-button" onClick={() => void refresh()} type="button">Reintentar <ArrowRight size={17} /></button>} warning />
   if (status === 'unauthenticated' || !session) return <LoginScreen />
-  if (!canAccessRoute(session.user.role, route)) {
-    const allowedRoute = defaultRouteFor(session.user.role)
+  if (!canAccessRoute(session.user.role, route, session.user.permissions)) {
+    const allowedRoute = defaultRouteFor(session.user.role, session.user.permissions)
     return <AuthMessage title="Acceso restringido" detail="Tu perfil no tiene permiso para entrar a esta sección." warning action={<a className="admin-primary-button" href={`#/${allowedRoute}`}>Ir a mi área <ArrowRight size={17} /></a>} />
   }
   return children

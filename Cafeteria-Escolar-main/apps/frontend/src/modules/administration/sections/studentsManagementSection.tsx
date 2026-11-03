@@ -41,7 +41,7 @@ const fullName = (student: Student) =>
   `${student.firstName} ${student.lastName}`;
 
 export function StudentsManagementSection() {
-  const { session } = useAuth();
+  const { session, can } = useAuth();
   const { students, loading, error: loadError, refresh } = useStudents();
   const [query, setQuery] = useState("");
   const [grade, setGrade] = useState("Todos");
@@ -236,7 +236,7 @@ export function StudentsManagementSection() {
         eyebrow="Gestión académica"
         title="Estudiantes"
         description="Administra estudiantes y sus cuentas protegidas en PostgreSQL."
-        action={
+        action={can("student:write") ? (
           <button
             className="admin-primary-button"
             onClick={() => {
@@ -248,7 +248,7 @@ export function StudentsManagementSection() {
             <Plus aria-hidden="true" className="size-5" />
             Nuevo estudiante
           </button>
-        }
+        ) : undefined}
       />
       {(message || loadError) && (
         <div
@@ -342,7 +342,7 @@ export function StudentsManagementSection() {
                     </td>
                     <td>
                       <div className="flex justify-end gap-1">
-                        <button
+                        {can("sales:read") && <button
                           aria-label={`Ver movimientos de ${fullName(student)}`}
                           className="admin-icon-button"
                           onClick={() => setAccountId(student.id)}
@@ -350,8 +350,8 @@ export function StudentsManagementSection() {
                           type="button"
                         >
                           <Eye aria-hidden="true" className="size-4" />
-                        </button>
-                        <button
+                        </button>}
+                        {can("student:abono") && <button
                           aria-label={`Recargar o abonar a ${fullName(student)}`}
                           className="admin-icon-button"
                           onClick={() => openFinance(student)}
@@ -359,8 +359,8 @@ export function StudentsManagementSection() {
                           type="button"
                         >
                           <WalletCards aria-hidden="true" className="size-4" />
-                        </button>
-                        <button
+                        </button>}
+                        {can("student:write") && <button
                           aria-label={`Editar ${fullName(student)}`}
                           className="admin-icon-button"
                           onClick={() =>
@@ -378,8 +378,8 @@ export function StudentsManagementSection() {
                           type="button"
                         >
                           <Pencil aria-hidden="true" className="size-4" />
-                        </button>
-                        <button
+                        </button>}
+                        {can("student:write") && <button
                           aria-label={`Cambiar estado de ${fullName(student)}`}
                           className="admin-icon-button"
                           onClick={() => setStatusId(student.id)}
@@ -387,7 +387,7 @@ export function StudentsManagementSection() {
                           type="button"
                         >
                           <Power aria-hidden="true" className="size-4" />
-                        </button>
+                        </button>}
                       </div>
                     </td>
                   </tr>

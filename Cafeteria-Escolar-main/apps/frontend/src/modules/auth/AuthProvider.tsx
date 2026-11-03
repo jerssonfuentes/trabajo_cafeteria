@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<AuthContextValue>(() => ({
     session, status, error,
-    can: (permission) => Boolean(session && hasPermission(session.user.role, permission)),
+    can: (permission) => Boolean(session && hasPermission(session.user.role, permission, session.user.permissions)),
     refresh: () => refresh(),
     login: async (email, password, rememberSession) => { await signIn(email, password, rememberSession); await refresh() },
     logout: async () => { await signOut(); setSession(null); setStatus('unauthenticated') },

@@ -12,6 +12,7 @@ import {
   type ManagedUserDraft,
 } from '../services/adminManagementService'
 import { AdminDialog, PageHeader, SearchField, StatusPill } from '../components/AdminUi'
+import { APP_PERMISSIONS, type Permission } from '../../auth/types'
 
 interface UserEditor extends ManagedUserDraft {
   password: string
@@ -35,6 +36,7 @@ function emptyEditor(): UserEditor {
     cashRegisterId: null,
     categoryAccessRestricted: false,
     allowedCategoryIds: [],
+    permissions: ['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read'],
   }
 }
 
@@ -86,6 +88,25 @@ export function UsersSection() {
       setError('Selecciona al menos una categoría o desactiva el límite por categorías.')
       return
     }
+    const permissionNeeds: Array<[Permission, Permission]> = [
+      ['pos:charge', 'pos:access'],
+      ['pos:access', 'cash-register:own'],
+      ['student:abono', 'student:read'],
+      ['student:write', 'student:read'],
+      ['inventory:write', 'inventory:read'],
+      ['student:abono', 'pos:access'],
+    ]
+    const missingPermission = permissionNeeds.find(([permission, prerequisite]) =>
+      editor.permissions.includes(permission) && !editor.permissions.includes(prerequisite),
+    )
+    if (missingPermission) {
+      setError(`El permiso “${missingPermission[0]}” requiere también “${missingPermission[1]}”.`)
+      return
+    }
+    if (!editor.permissions.some((permission) => ['admin:access', 'pos:access', 'inventory:read'].includes(permission))) {
+      setError('Asigna al menos un acceso principal: panel de gestión, punto de venta o consulta de inventario.')
+      return
+    }
 
     setSaving(true)
     setError('')
@@ -109,6 +130,7 @@ export function UsersSection() {
         ...confirmation,
         active: !confirmation.active,
         categoryAccessRestricted: confirmation.categoryAccessRestricted,
+        permissions: confirmation.permissions ?? rolePermissionDefaults(confirmation.role),
       })
       setConfirmation(null)
       await refresh()
@@ -121,7 +143,20 @@ export function UsersSection() {
 
   function editUser(user: ManagedUser) {
     setError('')
-    setEditor({ ...user, password: '' })
+    setEditor({ ...user, permissions: user.permissions ?? rolePermissionDefaults(user.role), password: '' })
+  }
+
+  function rolePermissionDefaults(nextRole: ManagedRole): Permission[] {
+    if (nextRole === 'administrator') return APP_PERMISSIONS.map(({ id }) => id)
+    if (nextRole === 'inventory') return ['inventory:read', 'inventory:write', 'student:read']
+    return ['pos:access', 'pos:charge', 'cash-register:own', 'student:read', 'student:abono', 'sales:read']
+  }
+
+  function rolePermissions(nextRole: ManagedRole) {
+    if (nextRole === 'administrator') return APP_PERMISSIONS
+    return APP_PERMISSIONS.filter(({ id }) => nextRole === 'cashier'
+      ? !id.startsWith('inventory:')
+      : !id.startsWith('pos:') && id !== 'cash-register:own' && id !== 'student:abono')
   }
 
   return (
@@ -188,9 +223,22 @@ export function UsersSection() {
           <label className="admin-field">Nombre completo<input className="admin-input" autoComplete="name" onChange={(event) => setEditor({ ...editor, displayName: event.target.value })} value={editor.displayName} /></label>
           <label className="admin-field">Correo electrónico<input className="admin-input" autoComplete="email" onChange={(event) => setEditor({ ...editor, email: event.target.value })} type="email" value={editor.email} /></label>
           <label className="admin-field">{editor.id ? 'Nueva contraseña (opcional)' : 'Contraseña inicial'}<input className="admin-input" autoComplete="new-password" minLength={8} onChange={(event) => setEditor({ ...editor, password: event.target.value })} required={!editor.id} type="password" value={editor.password} /></label>
-          <label className="admin-field">Rol<select className="admin-select" onChange={(event) => setEditor({ ...editor, role: event.target.value as ManagedRole, cashRegisterId: event.target.value === 'cashier' ? editor.cashRegisterId : null })} value={editor.role}>{roleValues.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="admin-field">Rol<select className="admin-select" onChange={(event) => { const nextRole = event.target.value as ManagedRole; setEditor({ ...editor, role: nextRole, permissions: rolePermissionDefaults(nextRole), cashRegisterId: nextRole === 'cashier' ? editor.cashRegisterId : null }) }} value={editor.role}>{roleValues.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           {editor.role === 'cashier' && <label className="admin-field">Caja asignada<select className="admin-select" onChange={(event) => setEditor({ ...editor, cashRegisterId: event.target.value || null })} value={editor.cashRegisterId ?? ''}><option value="">Selecciona una caja</option>{registers.filter((register) => register.active).map((register) => <option key={register.id} value={register.id}>{register.name}</option>)}</select></label>}
           <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-bold sm:col-span-2"><input checked={editor.active} onChange={(event) => setEditor({ ...editor, active: event.target.checked })} type="checkbox" />Cuenta activa</label>
+          {editor.role !== 'administrator' && <fieldset className="sm:col-span-2">
+            <legend className="mb-2 text-sm font-black text-slate-800">Permisos por módulo y operación</legend>
+            <p className="mb-3 text-xs font-semibold text-slate-500">Elige exactamente qué puede hacer esta cuenta. Los cambios aplican también en la base de datos.</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              {[...new Set(rolePermissions(editor.role).map(({ group }) => group))].map((group) => <section className="rounded-xl border border-slate-200 p-3" key={group}>
+                <h3 className="mb-2 text-xs font-black uppercase tracking-wide text-slate-500">{group}</h3>
+                <div className="grid gap-2">{rolePermissions(editor.role).filter((permission) => permission.group === group).map(({ id, label, description }) => <label className="flex cursor-pointer items-start gap-2 rounded-lg bg-slate-50 p-2.5" key={id}>
+                  <input checked={editor.permissions.includes(id)} className="mt-0.5" onChange={(event) => setEditor({ ...editor, permissions: event.target.checked ? [...new Set([...editor.permissions, id])] : editor.permissions.filter((permission) => permission !== id) })} type="checkbox" />
+                  <span><strong className="block text-xs text-slate-800">{label}</strong><span className="text-[11px] font-medium text-slate-500">{description}</span></span>
+                </label>)}</div>
+              </section>)}
+            </div>
+          </fieldset>}
           {editor.role !== 'administrator' && <div className="sm:col-span-2">
             <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-bold"><input checked={editor.categoryAccessRestricted} onChange={(event) => setEditor({ ...editor, categoryAccessRestricted: event.target.checked, allowedCategoryIds: event.target.checked ? editor.allowedCategoryIds : [] })} type="checkbox" /><KeyRound aria-hidden="true" className="size-4 text-slate-500" />Limitar acceso a categorías seleccionadas</label>
             {editor.categoryAccessRestricted && <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{categories.filter((category) => category.active).map((category) => <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold" key={category.id}><input checked={editor.allowedCategoryIds.includes(category.id)} onChange={(event) => setEditor({ ...editor, allowedCategoryIds: event.target.checked ? [...editor.allowedCategoryIds, category.id] : editor.allowedCategoryIds.filter((id) => id !== category.id) })} type="checkbox" />{category.name}</label>)}</div>}

@@ -1,4 +1,5 @@
 import { requireSupabase } from '../../../infrastructure/supabase/client'
+import type { Permission } from '../../auth/types'
 
 export type ManagedRole = 'administrator' | 'cashier' | 'inventory'
 
@@ -12,6 +13,7 @@ export interface ManagedUser {
   cashRegisterName: string | null
   categoryAccessRestricted: boolean
   allowedCategoryIds: string[]
+  permissions: Permission[] | null
   lastSignInAt: string | null
 }
 
@@ -25,6 +27,7 @@ export interface ManagedUserDraft {
   cashRegisterId: string | null
   categoryAccessRestricted: boolean
   allowedCategoryIds: string[]
+  permissions: Permission[]
 }
 
 export interface ManagedCashRegister {

@@ -12,7 +12,7 @@ export async function getSession(): Promise<SessionResult> {
 
   const { data: profile, error: profileError } = await client
     .from('profiles')
-    .select('display_name,role,cash_register_id,active,category_access_restricted,allowed_category_ids,cash_registers(name)')
+    .select('display_name,role,cash_register_id,active,category_access_restricted,allowed_category_ids,allowed_permissions,cash_registers(name)')
     .eq('user_id', userData.user.id)
     .maybeSingle()
 
@@ -37,6 +37,7 @@ export async function getSession(): Promise<SessionResult> {
       cashRegisterName: cashRegister?.name ?? undefined,
       categoryAccessRestricted: profile.category_access_restricted ?? false,
       allowedCategoryIds: profile.allowed_category_ids ?? [],
+      permissions: profile.allowed_permissions ?? null,
     },
     expiresAt: sessionData.session?.expires_at
       ? new Date(sessionData.session.expires_at * 1000).toISOString()
