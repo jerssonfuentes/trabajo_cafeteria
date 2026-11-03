@@ -1,3 +1,5 @@
+import { PackageSearch, Plus, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
 
 import { formatCurrency } from '../format'
@@ -24,79 +26,126 @@ export function ProductCatalog({
   products,
   subcategories,
 }: ProductCatalogProps) {
+  const [query, setQuery] = useState('')
   const availableSubcategories = subcategories[category] ?? []
-  const filteredProducts = products.filter(
-    (product) =>
-      (category === 'todos' || product.category === category) &&
-      (subcategory === 'Todas' || subcategory === 'Todos' || product.subcategory === subcategory),
-  )
+  const filteredProducts = useMemo(() => {
+    const normalizedQuery = query.trim().toLocaleLowerCase('es')
+    return products.filter((product) => {
+      const matchesCategory = category === 'todos' || product.category === category
+      const matchesSubcategory = subcategory === 'Todas' || subcategory === 'Todos' || product.subcategory === subcategory
+      const matchesQuery = !normalizedQuery || `${product.name} ${product.category} ${product.subcategory}`.toLocaleLowerCase('es').includes(normalizedQuery)
+      return matchesCategory && matchesSubcategory && matchesQuery
+    })
+  }, [category, products, query, subcategory])
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
-      <div className="category-scroll flex min-h-11 snap-x snap-mandatory gap-2 overflow-x-auto overscroll-x-contain pb-1" aria-label="Categorías">
-        {categories.map(({ id, label, icon: Icon }) => {
-          const selected = category === id
-          return (
+    <section className="catalog-workspace" aria-label="Catálogo de productos">
+      <aside className="catalog-category-rail">
+        <div className="catalog-category-title">
+          <span>CARTA</span>
+          <h2>Categorías</h2>
+        </div>
+        <nav className="category-scroll" aria-label="Categorías de productos">
+          {categories.map(({ id, label, icon: Icon }) => (
             <button
-              aria-pressed={selected}
-              className={`flex min-h-11 shrink-0 snap-start items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-sm font-bold leading-tight transition sm:gap-2 sm:px-4 sm:text-base ${
-                selected
-                  ? 'bg-gradient-to-b from-blue-500 to-blue-700 text-white shadow-md'
-                  : 'border border-slate-200 bg-slate-100 text-slate-600 hover:bg-blue-50 hover:text-blue-700'
-              }`}
+              aria-current={category === id ? 'true' : undefined}
+              aria-pressed={category === id}
+              className="category-button"
               key={id}
               onClick={() => onCategoryChange(id)}
               type="button"
             >
-              <Icon aria-hidden="true" className="size-5 shrink-0" />
+              <Icon aria-hidden="true" className="size-[18px] shrink-0" />
               <span>{label}</span>
+              <span className="category-chevron" aria-hidden="true">›</span>
             </button>
-          )
-        })}
-      </div>
+          ))}
+        </nav>
+        <div className="catalog-category-note">
+          <PackageSearch aria-hidden="true" size={18} />
+          <span>Elige una categoría para ver sus productos.</span>
+        </div>
+      </aside>
 
-      {availableSubcategories.length > 1 && <div className="subcategory-scroll mt-1 flex min-h-11 gap-2 overflow-x-auto overscroll-x-contain pb-1" aria-label="Subcategorías">
-        {availableSubcategories.map((item) => {
-          const selected = subcategory === item
-          return (
-            <button
-              aria-pressed={selected}
-              className={`min-h-11 min-w-fit shrink-0 rounded-lg px-4 text-sm font-bold transition ${
-                selected
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'border border-slate-200 bg-slate-50 text-slate-600 hover:bg-blue-50'
-              }`}
-              key={item}
-              onClick={() => onSubcategoryChange(item)}
-              type="button"
-            >
-              {item}
-            </button>
-          )
-        })}
-      </div>}
+      <div className="catalog-product-panel">
+        <div className="catalog-toolbar">
+          <div className="catalog-heading">
+            <span className="catalog-eyebrow">PUNTO DE VENTA</span>
+            <h2>Productos</h2>
+            <p>Selecciona un producto para agregarlo a la comanda.</p>
+          </div>
+          <label className="catalog-search">
+            <Search aria-hidden="true" size={18} />
+            <input
+              aria-label="Buscar productos"
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Buscar producto..."
+              type="search"
+              value={query}
+            />
+            <kbd>⌕</kbd>
+          </label>
+        </div>
 
-      <div className="product-grid mt-1 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1 pb-1" aria-live="polite">
-        {filteredProducts.map((product) => {
-          const productCategory = categories.find(({ id }) => id === product.category)
-          const Icon = productCategory?.icon ?? product.icon
-          const outOfStock = product.stockQuantity !== undefined && product.stockQuantity <= 0
-          return (
-            <button
-              aria-label={outOfStock ? `${product.name}, agotado` : `Agregar ${product.name}, ${formatCurrency(product.price)}`}
-              className={`product-card group flex flex-col items-start justify-between rounded-xl border border-white p-2 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-55 ${product.tint}`}
-              disabled={outOfStock}
-              key={product.id}
-              onClick={() => onAddProduct(product)}
-              type="button"
-            >
-              <span className="product-card-info">
-                <span className="product-card-header"><span className={`product-card-icon ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={25} strokeWidth={1.9} /></span><span className="product-card-name">{product.shortName}</span></span>
-                <span className="product-card-bottom"><span className="product-card-category">{productCategory?.label ?? 'Producto'}</span><span className="product-card-price"><strong>{formatCurrency(product.price)}</strong>{product.stockQuantity !== undefined && <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>{outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}</span>}</span></span>
-              </span>
-            </button>
-          )
-        })}
+        {availableSubcategories.length > 1 && (
+          <div className="subcategory-scroll" aria-label="Subcategorías">
+            {availableSubcategories.map((item) => (
+              <button
+                aria-pressed={subcategory === item}
+                className="subcategory-button"
+                key={item}
+                onClick={() => onSubcategoryChange(item)}
+                type="button"
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <div className="product-list-heading" aria-hidden="true">
+          <span>PRODUCTO</span>
+          <span>PRECIO</span>
+          <span>DISPONIBILIDAD</span>
+        </div>
+
+        <div className="product-grid" aria-live="polite">
+          {filteredProducts.map((product) => {
+            const productCategory = categories.find(({ id }) => id === product.category)
+            const Icon = productCategory?.icon ?? product.icon
+            const outOfStock = product.stockQuantity !== undefined && product.stockQuantity <= 0
+            return (
+              <button
+                aria-label={outOfStock ? `${product.name}, agotado` : `Agregar ${product.name}, ${formatCurrency(product.price)}`}
+                className="product-card"
+                disabled={outOfStock}
+                key={product.id}
+                onClick={() => onAddProduct(product)}
+                type="button"
+              >
+                <span className={`product-card-icon ${product.tint}`}>
+                  <Icon aria-hidden="true" className={product.iconColor} size={25} strokeWidth={1.9} />
+                </span>
+                <span className="product-card-info">
+                  <span className="product-card-name">{product.shortName}</span>
+                  <span className="product-card-category">{productCategory?.label ?? product.subcategory}</span>
+                </span>
+                <span className="product-card-price">{formatCurrency(product.price)}</span>
+                <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>
+                  {product.stockQuantity === undefined ? 'Disponible' : outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}
+                </span>
+                <span className="product-card-add" aria-hidden="true"><Plus size={17} /></span>
+              </button>
+            )
+          })}
+          {filteredProducts.length === 0 && (
+            <div className="product-empty-state">
+              <PackageSearch aria-hidden="true" size={28} />
+              <strong>No encontramos productos</strong>
+              <span>Prueba con otra búsqueda o categoría.</span>
+            </div>
+          )}
+        </div>
       </div>
     </section>
   )
