@@ -15,6 +15,8 @@ export interface AuthenticatedUser {
   role: AppRole
   cashRegisterId?: string
   cashRegisterName?: string
+  categoryAccessRestricted: boolean
+  allowedCategoryIds: string[]
 }
 
 export interface AuthSession {

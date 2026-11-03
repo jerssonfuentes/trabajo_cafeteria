@@ -27,9 +27,17 @@ function slugify(value: string) {
 }
 
 export function InventorySection() {
-  const { products, categories, movements, loading, error, refresh } = useInventory()
-  const { can } = useAuth()
+  const inventory = useInventory()
+  const { can, session } = useAuth()
   const writable = can('inventory:write')
+  const canAccessCategory = (categoryId: string) => session?.user.role === 'administrator'
+    || !session?.user.categoryAccessRestricted
+    || session.user.allowedCategoryIds.includes(categoryId)
+  const categories = inventory.categories.filter((category) => canAccessCategory(category.id))
+  const products = inventory.products.filter((product) => canAccessCategory(product.categoryId))
+  const productIds = new Set(products.map((product) => product.id))
+  const movements = inventory.movements.filter((movement) => productIds.has(movement.productId))
+  const { loading, error, refresh } = inventory
   const [view, setView] = useState<View>('products')
   const [query, setQuery] = useState('')
   const [productEditor, setProductEditor] = useState<ProductForm | null>(null)

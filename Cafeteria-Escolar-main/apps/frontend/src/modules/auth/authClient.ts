@@ -1,4 +1,4 @@
-import { isSupabaseConfigured, requireSupabase } from '../../infrastructure/supabase/client'
+import { isSupabaseConfigured, requireSupabase, setRememberSessionPreference } from '../../infrastructure/supabase/client'
 import { normalizeAuthEmail, signInErrorMessage } from './authErrors'
 import type { AppRole, AuthSession, SessionResult } from './types'
 
@@ -12,7 +12,7 @@ export async function getSession(): Promise<SessionResult> {
 
   const { data: profile, error: profileError } = await client
     .from('profiles')
-    .select('display_name,role,cash_register_id,active,cash_registers(name)')
+    .select('display_name,role,cash_register_id,active,category_access_restricted,allowed_category_ids,cash_registers(name)')
     .eq('user_id', userData.user.id)
     .maybeSingle()
 
@@ -35,6 +35,8 @@ export async function getSession(): Promise<SessionResult> {
       role: profile.role as AppRole,
       cashRegisterId: profile.cash_register_id ?? undefined,
       cashRegisterName: cashRegister?.name ?? undefined,
+      categoryAccessRestricted: profile.category_access_restricted ?? false,
+      allowedCategoryIds: profile.allowed_category_ids ?? [],
     },
     expiresAt: sessionData.session?.expires_at
       ? new Date(sessionData.session.expires_at * 1000).toISOString()
@@ -43,7 +45,8 @@ export async function getSession(): Promise<SessionResult> {
   return session
 }
 
-export async function signIn(email: string, password: string) {
+export async function signIn(email: string, password: string, rememberSession: boolean) {
+  setRememberSessionPreference(rememberSession)
   const { error } = await requireSupabase().auth.signInWithPassword({
     email: normalizeAuthEmail(email),
     password,

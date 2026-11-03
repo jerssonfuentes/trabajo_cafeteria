@@ -78,7 +78,13 @@ export function PosPage() {
   const { products: inventoryProducts, categories: inventoryCategories } = useInventory(false)
   const { session, can } = useAuth()
 
-  const catalogProducts = useMemo<Product[]>(() => inventoryProducts.filter((item) => item.active).map((item) => {
+  const catalogProducts = useMemo<Product[]>(() => inventoryProducts.filter((item) =>
+    item.active && (
+      session?.user.role === 'administrator'
+      || !session?.user.categoryAccessRestricted
+      || session.user.allowedCategoryIds.includes(item.categoryId)
+    ),
+  ).map((item) => {
     const visual = productVisual(item)
     return {
       id: item.id,
@@ -92,15 +98,19 @@ export function PosPage() {
       icon: visual.icon,
       iconColor: visual.iconColor,
     }
-  }), [inventoryProducts])
+  }), [inventoryProducts, session?.user.allowedCategoryIds, session?.user.categoryAccessRestricted, session?.user.role])
   const catalogCategories = useMemo(() => [
     { id: 'todos', label: 'Todos', icon: LayoutGrid },
-    ...inventoryCategories.filter((item) => item.active).map((item) => ({
+    ...inventoryCategories.filter((item) => item.active && (
+      session?.user.role === 'administrator'
+      || !session?.user.categoryAccessRestricted
+      || session.user.allowedCategoryIds.includes(item.id)
+    )).map((item) => ({
       id: item.slug,
       label: item.name,
       icon: staticCategories.find((category) => category.id === item.slug)?.icon ?? Package,
     })),
-  ], [inventoryCategories])
+  ], [inventoryCategories, session?.user.allowedCategoryIds, session?.user.categoryAccessRestricted, session?.user.role])
   const catalogSubcategories = useMemo(() => Object.fromEntries(catalogCategories.map((item) => [
     item.id,
     item.id === 'todos'

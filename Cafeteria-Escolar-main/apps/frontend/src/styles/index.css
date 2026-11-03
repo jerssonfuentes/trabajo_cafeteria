@@ -1011,3 +1011,29 @@ html, body { background: #f4f4f8; color: #282638; }
   text-shadow: 0 1px 1px rgb(0 0 0 / 18%);
 }
 
+.login-remember-row {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 38px;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0 0;
+  color: #526257;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.login-remember-row input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #57527d;
+  cursor: pointer;
+}
+
+.login-remember-row input:focus-visible {
+  outline: 3px solid rgb(87 82 125 / 28%);
+  outline-offset: 3px;
+}
+

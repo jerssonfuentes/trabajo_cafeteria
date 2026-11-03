@@ -10,7 +10,7 @@ interface AuthContextValue {
   status: 'loading' | 'authenticated' | 'unauthenticated' | 'unconfigured' | 'error'
   error: string
   can(permission: Permission): boolean
-  login(email: string, password: string): Promise<void>
+  login(email: string, password: string, rememberSession: boolean): Promise<void>
   logout(): Promise<void>
   refresh(): Promise<void>
 }
@@ -46,7 +46,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session, status, error,
     can: (permission) => Boolean(session && hasPermission(session.user.role, permission)),
     refresh: () => refresh(),
-    login: async (email, password) => { await signIn(email, password); await refresh() },
+    login: async (email, password, rememberSession) => { await signIn(email, password, rememberSession); await refresh() },
     logout: async () => { await signOut(); setSession(null); setStatus('unauthenticated') },
   }), [session, status, error, refresh])
 
