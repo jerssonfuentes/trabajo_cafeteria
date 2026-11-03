@@ -3,14 +3,6 @@ import type { LucideIcon } from 'lucide-react'
 import { formatCurrency } from '../format'
 import type { Product } from '../types'
 
-const productImages: Record<string, string> = {
-  bebidas: '/food/drinks.jpg',
-  paquetes: '/food/fries.jpg',
-  pasteles: '/food/pastry.jpg',
-  panaderia: '/food/bakery.jpg',
-  rapidos: '/food/burger.jpg',
-}
-
 interface ProductCatalogProps {
   category: string
   subcategory: string
@@ -97,10 +89,9 @@ export function ProductCatalog({
               onClick={() => onAddProduct(product)}
               type="button"
             >
-              <span className="product-photo-wrap">
-                <span className={`product-photo-fallback ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={31} strokeWidth={1.8} /></span>
-                <img alt="" className="product-photo" loading="lazy" onError={(event) => { event.currentTarget.style.display = 'none' }} src={productImages[product.category] ?? productImages.panaderia} />
-                <span className="product-photo-add" aria-hidden="true">+</span>
+              <span className="product-card-icon-wrap">
+                <span className={`product-card-icon ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={30} strokeWidth={1.9} /></span>
+                <span className="product-card-add" aria-hidden="true">+</span>
               </span>
               <span className="product-card-info">
                 <span className="product-card-name">{product.shortName}</span>
