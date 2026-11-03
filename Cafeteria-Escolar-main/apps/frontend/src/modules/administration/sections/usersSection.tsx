@@ -13,6 +13,7 @@ import {
 } from '../services/adminManagementService'
 import { AdminDialog, PageHeader, SearchField, StatusPill } from '../components/AdminUi'
 import { APP_PERMISSIONS, type Permission } from '../../auth/types'
+import { useAuth } from '../../auth'
 
 interface UserEditor extends ManagedUserDraft {
   password: string
@@ -32,6 +33,7 @@ function emptyEditor(): UserEditor {
     email: '',
     password: '',
     role: 'cashier',
+    isSuperAdmin: false,
     active: true,
     cashRegisterId: null,
     categoryAccessRestricted: false,
@@ -46,6 +48,8 @@ function formatLastAccess(value: string | null) {
 }
 
 export function UsersSection() {
+  const { session } = useAuth()
+  const isSuperAdmin = session?.user.isSuperAdmin ?? false
   const [users, setUsers] = useState<ManagedUser[]>([])
   const [registers, setRegisters] = useState<ManagedCashRegister[]>([])
   const [query, setQuery] = useState('')
@@ -188,7 +192,7 @@ export function UsersSection() {
               {filtered.map((user) => (
                 <tr key={user.id}>
                   <td><strong>{user.displayName}</strong><span className="block text-xs text-slate-400">{user.email}</span></td>
-                  <td><span className="inline-flex items-center gap-1 font-bold"><ShieldCheck aria-hidden="true" className="size-4 text-blue-600" />{roleLabels[user.role]}</span></td>
+                  <td><span className="inline-flex items-center gap-1 font-bold"><ShieldCheck aria-hidden="true" className="size-4 text-blue-600" />{user.isSuperAdmin ? 'Administrador superior' : roleLabels[user.role]}</span></td>
                   <td>{user.cashRegisterName ?? 'Sin caja'}</td>
                   <td>{user.role === 'administrator' || !user.categoryAccessRestricted
                     ? <span className="text-xs font-bold text-slate-500">Todas</span>
@@ -227,8 +231,9 @@ export function UsersSection() {
           <label className="admin-field">Nombre completo<input className="admin-input" autoComplete="name" onChange={(event) => setEditor({ ...editor, displayName: event.target.value })} value={editor.displayName} /></label>
           <label className="admin-field">Correo electrónico<input className="admin-input" autoComplete="email" onChange={(event) => setEditor({ ...editor, email: event.target.value })} type="email" value={editor.email} /></label>
           <label className="admin-field">{editor.id ? 'Nueva contraseña (opcional)' : 'Contraseña inicial'}<input className="admin-input" autoComplete="new-password" minLength={8} onChange={(event) => setEditor({ ...editor, password: event.target.value })} required={!editor.id} type="password" value={editor.password} /></label>
-          <label className="admin-field">Rol<select className="admin-select" onChange={(event) => { const nextRole = event.target.value as ManagedRole; setEditor({ ...editor, role: nextRole, permissions: rolePermissionDefaults(nextRole) }) }} value={editor.role}>{roleValues.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+          <label className="admin-field">Rol<select className="admin-select" onChange={(event) => { const nextRole = event.target.value as ManagedRole; setEditor({ ...editor, role: nextRole, isSuperAdmin: nextRole === 'administrator' ? editor.isSuperAdmin : false, permissions: rolePermissionDefaults(nextRole) }) }} value={editor.role}>{roleValues.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
           <label className="admin-field">Caja asignada<select className="admin-select" onChange={(event) => setEditor({ ...editor, cashRegisterId: event.target.value || null })} value={editor.cashRegisterId ?? ''}><option value="">Selecciona una caja</option>{registers.filter((register) => register.active).map((register) => <option key={register.id} value={register.id}>{register.name}</option>)}</select></label>
+          {isSuperAdmin && editor.role === 'administrator' && <label className="flex min-h-11 items-center gap-3 rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-950 sm:col-span-2"><input checked={editor.isSuperAdmin} onChange={(event) => setEditor({ ...editor, isSuperAdmin: event.target.checked })} type="checkbox" /><ShieldCheck className="size-4" />Administrador superior: acceso a todos los colegios y gestión de permisos de red</label>}
           <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-bold sm:col-span-2"><input checked={editor.active} onChange={(event) => setEditor({ ...editor, active: event.target.checked })} type="checkbox" />Cuenta activa</label>
           {editor.role !== 'administrator' && <fieldset className="sm:col-span-2">
             <legend className="mb-2 text-sm font-black text-slate-800">Permisos por módulo y operación</legend>

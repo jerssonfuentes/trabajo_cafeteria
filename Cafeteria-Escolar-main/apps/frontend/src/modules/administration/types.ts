@@ -8,7 +8,8 @@ export type AdministrationSection =
   | "closure"
   | "sales"
   | "reports"
-  | "settings";
+  | "settings"
+  | "network";
 
 export type RecordStatus = "active" | "inactive";
 export type UserRole = "Administrador" | "Cajero" | "Inventarios";

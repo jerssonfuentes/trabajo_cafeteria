@@ -20,6 +20,10 @@ interface MovementRow {
 }
 
 function first<T>(value: T | T[]) { return Array.isArray(value) ? value[0] : value }
+function scopedKey(key: string) {
+  const userId = typeof window === 'undefined' ? null : window.localStorage.getItem('cafeteria:active-user-id')
+  return `${key}:${userId ?? 'sin-sesion'}`
+}
 function notifyChanged() { window.dispatchEvent(new Event(INVENTORY_CHANGED_EVENT)) }
 
 function readCache<T>(key: string): T[] {
@@ -53,40 +57,43 @@ function mapProduct(row: ProductRow): InventoryProduct {
 }
 
 export async function listInventoryCategories() {
+  const cacheKey = scopedKey(CATEGORIES_CACHE_KEY)
   const { data, error } = await requireSupabase().from('product_categories')
     .select('id,name,slug,active').order('name')
   if (error) {
-    const cached = readCache<InventoryCategory>(CATEGORIES_CACHE_KEY)
+    const cached = readCache<InventoryCategory>(cacheKey)
     if (cached.length > 0) return cached
     throw new Error('No fue posible cargar las categorías autorizadas.')
   }
   const categories = (data as CategoryRow[]).map((row) => ({ ...row })) as InventoryCategory[]
-  writeCache(CATEGORIES_CACHE_KEY, categories)
+  writeCache(cacheKey, categories)
   return categories
 }
 
 export async function listInventoryProducts(activeOnly = false) {
+  const cacheKey = scopedKey(PRODUCTS_CACHE_KEY)
   let query = requireSupabase().from('products')
     .select('id,name,category_id,subcategory,price,cost,stock_quantity,minimum_stock,sku,active,updated_at,product_categories(id,name,slug,active)')
     .order('name')
   if (activeOnly) query = query.eq('active', true)
   const { data, error } = await query
   if (error) {
-    const cached = readCache<InventoryProduct>(PRODUCTS_CACHE_KEY)
+    const cached = readCache<InventoryProduct>(cacheKey)
     if (cached.length > 0) return withPendingSales(cached.filter((product) => !activeOnly || product.active))
     throw new Error('No fue posible cargar los productos autorizados.')
   }
   const products = (data as unknown as ProductRow[]).map(mapProduct)
-  writeCache(PRODUCTS_CACHE_KEY, products)
+  writeCache(cacheKey, products)
   return withPendingSales(products)
 }
 
 export async function listInventoryMovements(limit = 200) {
+  const cacheKey = scopedKey(MOVEMENTS_CACHE_KEY)
   const { data, error } = await requireSupabase().from('stock_movements')
     .select('id,product_id,quantity_delta,movement_type,reason,actor_user_id,occurred_at,source_sale_id,reverses_movement_id,products(name)')
     .order('occurred_at', { ascending: false }).limit(limit)
   if (error) {
-    const cached = readCache<InventoryMovement>(MOVEMENTS_CACHE_KEY)
+    const cached = readCache<InventoryMovement>(cacheKey)
     if (cached.length > 0) return cached.slice(0, limit)
     throw new Error('No fue posible cargar el historial autorizado.')
   }
@@ -96,7 +103,7 @@ export async function listInventoryMovements(limit = 200) {
     actorUserId: row.actor_user_id, occurredAt: row.occurred_at,
     sourceSaleId: row.source_sale_id ?? undefined, reversesMovementId: row.reverses_movement_id ?? undefined,
   }))
-  writeCache(MOVEMENTS_CACHE_KEY, movements)
+  writeCache(cacheKey, movements)
   return movements
 }
 

@@ -34,6 +34,8 @@ export interface AuthenticatedUser {
   displayName: string
   email: string
   role: AppRole
+  isSuperAdmin: boolean
+  cafeteriaId: string
   cashRegisterId?: string
   cashRegisterName?: string
   categoryAccessRestricted: boolean

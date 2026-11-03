@@ -15,7 +15,12 @@ export const SYNC_STATUS_EVENT = 'cafeteria:sync-status-changed'
 const LAST_SYNC_KEY = 'cafeteria:last-sync-at:v1'
 
 function browserStorage(): OutboxStorage | null {
-  return typeof window === 'undefined' ? null : window.localStorage
+  if (typeof window === 'undefined') return null
+  const prefix = `cafeteria:user:${window.localStorage.getItem('cafeteria:active-user-id') ?? 'sin-sesion'}:`
+  return {
+    getItem: (key) => window.localStorage.getItem(`${prefix}${key}`),
+    setItem: (key, value) => window.localStorage.setItem(`${prefix}${key}`, value),
+  }
 }
 
 function emitChanged() {

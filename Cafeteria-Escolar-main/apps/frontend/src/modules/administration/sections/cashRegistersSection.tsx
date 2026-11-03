@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from 'react'
 import { Banknote, Pencil, Plus, RefreshCw, ShoppingBag, Store, Undo2 } from 'lucide-react'
 
 import { listCashRegisterSummaries, SALES_CHANGED_EVENT, type CashRegisterSummary } from '../../sales'
+import { useAuth } from '../../auth'
 import { formatAdminCurrency } from '../format'
 import { AdminDialog, EmptyState, PageHeader, StatusPill } from '../components/AdminUi'
 import {
   listManagedCashRegisters,
   listManagedUsers,
+  listNetworkCafeterias,
   saveManagedCashRegister,
   type ManagedCashRegister,
   type ManagedUser,
@@ -17,6 +19,7 @@ interface RegisterEditor {
   name: string
   active: boolean
   userId: string
+  cafeteriaId: string
 }
 
 const roleLabels: Record<ManagedUser['role'], string> = {
@@ -25,17 +28,20 @@ const roleLabels: Record<ManagedUser['role'], string> = {
   inventory: 'Inventarios',
 }
 
-function blankEditor(): RegisterEditor {
-  return { name: '', active: true, userId: '' }
+function blankEditor(cafeteriaId = ''): RegisterEditor {
+  return { name: '', active: true, userId: '', cafeteriaId }
 }
 
 export function CashRegistersSection() {
   const [registers, setRegisters] = useState<Array<ManagedCashRegister & Partial<CashRegisterSummary>>>([])
   const [cashiers, setCashiers] = useState<ManagedUser[]>([])
+  const [cafeterias, setCafeterias] = useState<Array<{ id: string; name: string; schoolName: string }>>([])
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
   const [editor, setEditor] = useState<RegisterEditor | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const { session } = useAuth()
 
   const refresh = useCallback(async () => {
     setLoading(true)
@@ -48,13 +54,18 @@ export function CashRegistersSection() {
       const summaryById = new Map(summaries.map((summary) => [summary.id, summary]))
       setRegisters(managed.map((register) => ({ ...register, ...summaryById.get(register.id) })))
       setCashiers(users.filter((user) => user.active))
+      setIsSuperAdmin(Boolean(session?.user.isSuperAdmin))
+      if (session?.user.isSuperAdmin) {
+        const networkCafeterias = await listNetworkCafeterias()
+        setCafeterias(networkCafeterias.map((item) => ({ id: item.id, name: item.name, schoolName: item.schools?.name ?? 'Colegio' })))
+      }
       setError('')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No fue posible cargar las cajas.')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [session?.user.isSuperAdmin])
 
   useEffect(() => {
     void refresh()
@@ -72,6 +83,7 @@ export function CashRegistersSection() {
         name: editor.name,
         active: editor.active,
         userId: editor.userId || null,
+        cafeteriaId: editor.cafeteriaId || null,
       })
       setEditor(null)
       await refresh()
@@ -88,7 +100,7 @@ export function CashRegistersSection() {
         eyebrow="Operación de caja"
         title="Cajas"
         description="Crea y edita cajas, asigna cajeros y consulta el recaudo confirmado."
-        action={<div className="flex gap-2"><button className="admin-secondary-button" onClick={() => void refresh()} type="button"><RefreshCw className="size-4" />Actualizar</button><button className="admin-primary-button" onClick={() => { setError(''); setEditor(blankEditor()) }} type="button"><Plus className="size-4" />Nueva caja</button></div>}
+        action={<div className="flex gap-2"><button className="admin-secondary-button" onClick={() => void refresh()} type="button"><RefreshCw className="size-4" />Actualizar</button><button className="admin-primary-button" onClick={() => { setError(''); setEditor(blankEditor(cafeterias[0]?.id ?? '')) }} type="button"><Plus className="size-4" />Nueva caja</button></div>}
       />
       {error && <div className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm font-bold text-rose-700" role="alert">{error}</div>}
       {loading && <p className="text-sm font-semibold text-slate-500">Cargando cajas…</p>}
@@ -100,9 +112,9 @@ export function CashRegistersSection() {
               <div className={`grid size-12 place-items-center rounded-xl ${register.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}><Store /></div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2"><h2 className="admin-card-title">{register.name}</h2><StatusPill active={register.active} activeText="Activa" inactiveText="Inactiva" /></div>
-                <p className="admin-card-subtitle">{register.assignedUsers.length ? `Asignada a ${register.assignedUsers.map((user) => user.name).join(', ')}` : 'Sin usuarios asignados'}</p>
+                <p className="admin-card-subtitle">{register.cafeteriaName} · {register.assignedUsers.length ? `Asignada a ${register.assignedUsers.map((user) => user.name).join(', ')}` : 'Sin usuarios asignados'}</p>
               </div>
-              <button aria-label={`Editar ${register.name}`} className="admin-icon-button" onClick={() => { setError(''); setEditor({ id: register.id, name: register.name, active: register.active, userId: register.assignedUsers.find((user) => user.role === 'cashier')?.id ?? '' }) }} type="button"><Pencil className="size-4" /></button>
+              <button aria-label={`Editar ${register.name}`} className="admin-icon-button" onClick={() => { setError(''); setEditor({ id: register.id, name: register.name, active: register.active, userId: register.assignedUsers.find((user) => user.role === 'cashier')?.id ?? '', cafeteriaId: register.cafeteriaId }) }} type="button"><Pencil className="size-4" /></button>
             </div>
             <dl className="mt-4 grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-sm">
               <div className="col-span-2"><dt className="flex items-center gap-1 font-bold text-slate-500"><Banknote className="size-4" />Recaudo efectivo</dt><dd className="mt-1 text-2xl font-black text-emerald-700">{formatAdminCurrency(register.cashTotal ?? 0)}</dd></div>
@@ -119,6 +131,7 @@ export function CashRegistersSection() {
       </>}>
         {editor && <div className="grid gap-4">
           <label className="admin-field">Nombre de la caja<input autoFocus className="admin-input" maxLength={80} onChange={(event) => setEditor({ ...editor, name: event.target.value })} value={editor.name} /></label>
+          {isSuperAdmin && <label className="admin-field">Colegio y cafetería<select className="admin-select" disabled={Boolean(editor.id)} onChange={(event) => setEditor({ ...editor, cafeteriaId: event.target.value })} value={editor.cafeteriaId}><option value="">Selecciona una cafetería</option>{cafeterias.map((cafe) => <option key={cafe.id} value={cafe.id}>{cafe.schoolName} · {cafe.name}</option>)}</select><span className="text-xs font-medium text-slate-500">La pertenencia de una caja existente no se cambia para conservar su historial financiero.</span></label>}
           <label className="admin-field">Usuario asociado<select className="admin-select" disabled={!editor.active} onChange={(event) => setEditor({ ...editor, userId: event.target.value })} value={editor.userId}><option value="">Sin cambios</option>{cashiers.map((cashier) => <option key={cashier.id} value={cashier.id}>{cashier.displayName} · {roleLabels[cashier.role]} · {cashier.email}</option>)}</select><span className="text-xs font-medium text-slate-500">Al guardar, se actualizará la caja asignada a esa cuenta.</span></label>
           <label className="flex min-h-11 items-center gap-3 rounded-lg border border-slate-200 px-3 text-sm font-bold"><input checked={editor.active} onChange={(event) => setEditor({ ...editor, active: event.target.checked, userId: event.target.checked ? editor.userId : '' })} type="checkbox" />Caja activa</label>
         </div>}

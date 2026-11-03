@@ -17,6 +17,7 @@ import {
   Utensils,
   Users,
   UsersRound,
+  Network,
   Wifi,
   WifiOff,
   X,
@@ -44,6 +45,7 @@ const navigation: NavigationItem[] = [
   { id: "sales", label: "Ventas", icon: ShoppingBag, permission: "sales:read" },
   { id: "reports", label: "Reportes", icon: FileChartColumn, permission: "reports:read" },
   { id: "settings", label: "Configuración", icon: Settings, permission: "admin:access" },
+  { id: "network", label: "Red escolar", icon: Network, permission: "admin:access" },
 ];
 
 interface AdminShellProps {
@@ -66,7 +68,7 @@ export function AdminShell({
   const [loggingOut, setLoggingOut] = useState(false);
   const { session, logout, can } = useAuth();
   const permittedNavigation = navigation.filter(({ id, permission }) =>
-    (session?.user.role === "administrator" || !["users", "registers", "settings"].includes(id))
+    ((session?.user.role === "administrator" && !["network"].includes(id)) || session?.user.isSuperAdmin || !["users", "registers", "settings", "network"].includes(id))
     && can(permission),
   );
   const activeItem = navigation.find((item) => item.id === activeSection);
@@ -206,7 +208,7 @@ export function AdminShell({
               {session?.user.displayName}
             </p>
             <p className="hidden truncate text-xs font-semibold text-slate-500 sm:block">
-              {session?.user.role === "administrator" ? "Administrador" : session?.user.role === "cashier" ? "Cajero" : "Inventarios"} · Sesión verificada por Supabase
+              {session?.user.isSuperAdmin ? "Administrador superior" : session?.user.role === "administrator" ? "Administrador" : session?.user.role === "cashier" ? "Cajero" : "Inventarios"} · Sesión verificada por Supabase
             </p>
           </div>
           <div className="hidden items-center gap-2 rounded-xl bg-slate-100 px-3 py-2 text-sm font-bold text-slate-600 sm:flex">

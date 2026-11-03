@@ -11,6 +11,7 @@ import { SettingsSection } from "./sections/settingsSection";
 import { StudentsManagementSection } from "./sections/studentsManagementSection";
 import { UsersSection } from "./sections/usersSection";
 import { InventorySection } from "../inventory";
+import { NetworkSection } from "./sections/networkSection";
 import type { AdministrationSection } from "./types";
 import { useAuth } from "../auth";
 import type { Permission } from "../auth/types";
@@ -26,18 +27,19 @@ const sectionPermissions: Record<AdministrationSection, Permission> = {
   sales: "sales:read",
   reports: "reports:read",
   settings: "admin:access",
+  network: "admin:access",
 };
 
 export function AdministrationPage() {
   const { session, can } = useAuth();
-  const adminOnly: AdministrationSection[] = ["users", "registers", "settings"];
+  const adminOnly: AdministrationSection[] = ["users", "registers", "settings", "network"];
   const visible = (section: AdministrationSection) => (
-    session?.user.role === "administrator" || !adminOnly.includes(section)
+    (section === "network" ? session?.user.isSuperAdmin === true : session?.user.role === "administrator" || !adminOnly.includes(section))
   ) && can(sectionPermissions[section]);
   const firstAllowed = (Object.keys(sectionPermissions) as AdministrationSection[]).find(visible) ?? "students";
   const [activeSection, setActiveSection] = useState<AdministrationSection>(() => {
     const route = window.location.hash.split("?")[0] ?? "";
-    const requested = route.startsWith("#/admin/closure") ? "closure" : route.startsWith("#/admin/students") ? "students" : "dashboard";
+    const requested = route.startsWith("#/admin/closure") ? "closure" : route.startsWith("#/admin/network") ? "network" : route.startsWith("#/admin/students") ? "students" : "dashboard";
     return visible(requested) ? requested : firstAllowed;
   });
 
@@ -52,6 +54,7 @@ export function AdministrationPage() {
     sales: <SalesSection />,
     reports: <ReportsSection />,
     settings: <SettingsSection />,
+    network: <NetworkSection />,
   };
 
   function changeSection(section: AdministrationSection) {

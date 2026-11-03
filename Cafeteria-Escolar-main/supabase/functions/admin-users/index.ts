@@ -17,6 +17,7 @@ interface UserInput {
   displayName?: string
   role?: AppRole
   active?: boolean
+  isSuperAdmin?: boolean
   cashRegisterId?: string | null
   categoryAccessRestricted?: boolean
   allowedCategoryIds?: string[]
@@ -59,7 +60,7 @@ Deno.serve(async (request) => {
 
   const { data: callerProfile, error: profileError } = await serviceClient
     .from('profiles')
-    .select('role,active')
+    .select('role,active,is_super_admin,cafeteria_id')
     .eq('user_id', callerData.user.id)
     .maybeSingle()
   if (profileError || callerProfile?.role !== 'administrator' || !callerProfile.active) {
@@ -72,7 +73,7 @@ Deno.serve(async (request) => {
     if (body.action === 'list') {
       const [{ data: profiles, error: usersError }, authUsers] = await Promise.all([
         serviceClient.from('profiles')
-          .select('user_id,display_name,role,cash_register_id,active,category_access_restricted,allowed_category_ids,allowed_permissions,cash_registers(name)')
+          .select('user_id,display_name,role,cash_register_id,cafeteria_id,is_super_admin,active,category_access_restricted,allowed_category_ids,allowed_permissions,cash_registers(name)')
           .order('display_name'),
         (async () => {
           const allUsers = []
@@ -87,7 +88,10 @@ Deno.serve(async (request) => {
       ])
       if (usersError) throw usersError
       const authById = new Map(authUsers.map((user) => [user.id, user]))
-      return json((profiles ?? []).flatMap((profile) => {
+      const visibleProfiles = callerProfile.is_super_admin
+        ? profiles ?? []
+        : (profiles ?? []).filter((profile) => profile.cafeteria_id === callerProfile.cafeteria_id)
+      return json(visibleProfiles.flatMap((profile) => {
         const authUser = authById.get(profile.user_id)
         if (!authUser) return []
         const register = Array.isArray(profile.cash_registers) ? profile.cash_registers[0] : profile.cash_registers
@@ -96,6 +100,8 @@ Deno.serve(async (request) => {
           displayName: profile.display_name,
           email: authUser.email ?? '',
           role: profile.role,
+          isSuperAdmin: profile.is_super_admin,
+          cafeteriaId: profile.cafeteria_id,
           active: profile.active,
           cashRegisterId: profile.cash_register_id,
           cashRegisterName: register?.name ?? null,
@@ -162,9 +168,15 @@ Deno.serve(async (request) => {
     let cashRegisterId = input.cashRegisterId || null
     if (!cashRegisterId) return json({ error: 'Asigna una caja activa a cada usuario.' }, 400)
     const { data: register, error: registerError } = await serviceClient.from('cash_registers')
-      .select('id').eq('id', cashRegisterId).eq('active', true).maybeSingle()
+      .select('id,cafeteria_id').eq('id', cashRegisterId).eq('active', true).maybeSingle()
     if (registerError) throw registerError
     if (!register) return json({ error: 'Selecciona una caja activa.' }, 400)
+    if (!callerProfile.is_super_admin && register.cafeteria_id !== callerProfile.cafeteria_id) {
+      return json({ error: 'Solo puedes asignar cajas de tu cafetería.' }, 403)
+    }
+    if (input.isSuperAdmin && (input.role !== 'administrator' || !callerProfile.is_super_admin)) {
+      return json({ error: 'Solo un administrador superior puede otorgar ese nivel de acceso.' }, 403)
+    }
 
     if (body.action === 'create') {
       const email = input.email?.trim().toLowerCase() ?? ''
@@ -184,6 +196,8 @@ Deno.serve(async (request) => {
         user_id: createdAuth.user.id,
         display_name: displayName,
         role: input.role,
+        is_super_admin: Boolean(input.isSuperAdmin && callerProfile.is_super_admin),
+        cafeteria_id: register.cafeteria_id,
         active: input.active ?? true,
         cash_register_id: cashRegisterId,
         category_access_restricted: input.categoryAccessRestricted ?? false,
@@ -200,11 +214,23 @@ Deno.serve(async (request) => {
     if (body.action === 'update') {
       if (!input.id) return json({ error: 'Falta el usuario que se va a editar.' }, 400)
       const { data: existingProfile, error: existingProfileError } = await serviceClient.from('profiles')
-        .select('role,active').eq('user_id', input.id).maybeSingle()
+        .select('role,active,is_super_admin,cafeteria_id').eq('user_id', input.id).maybeSingle()
       if (existingProfileError) throw existingProfileError
       if (!existingProfile) return json({ error: 'No se encontró el perfil que se va a editar.' }, 404)
+      if (!callerProfile.is_super_admin && existingProfile.cafeteria_id !== callerProfile.cafeteria_id) {
+        return json({ error: 'No tienes acceso a usuarios de otra cafetería.' }, 403)
+      }
+      if (existingProfile.is_super_admin && !callerProfile.is_super_admin) {
+        return json({ error: 'Solo un administrador superior puede editar esta cuenta.' }, 403)
+      }
       if (input.id === callerData.user.id && (input.role !== 'administrator' || input.active === false)) {
         return json({ error: 'No puedes quitarte tus propios permisos de administrador ni desactivar tu cuenta desde aquí.' }, 400)
+      }
+      if (existingProfile.is_super_admin && (!input.isSuperAdmin || input.active === false)) {
+        const { count, error: superAdminCountError } = await serviceClient.from('profiles')
+          .select('user_id', { count: 'exact', head: true }).eq('is_super_admin', true).eq('active', true)
+        if (superAdminCountError) throw superAdminCountError
+        if ((count ?? 0) <= 1) return json({ error: 'Debe quedar al menos un administrador superior activo.' }, 400)
       }
       if (existingProfile.role === 'administrator' && (input.role !== 'administrator' || input.active === false)) {
         const { count, error: countError } = await serviceClient.from('profiles')
@@ -226,6 +252,8 @@ Deno.serve(async (request) => {
       const { data: updatedProfile, error: updateError } = await serviceClient.from('profiles').update({
         display_name: displayName,
         role: input.role,
+        is_super_admin: callerProfile.is_super_admin ? Boolean(input.isSuperAdmin && input.role === 'administrator') : existingProfile.is_super_admin,
+        cafeteria_id: register.cafeteria_id,
         active: input.active ?? true,
         cash_register_id: cashRegisterId,
         category_access_restricted: input.categoryAccessRestricted ?? false,
