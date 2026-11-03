@@ -90,12 +90,10 @@ export function ProductCatalog({
               onClick={() => onAddProduct(product)}
               type="button"
             >
-              <span className={`product-card-icon ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={28} strokeWidth={1.9} /></span>
               <span className="product-card-info">
-                <span className="product-card-name">{product.shortName}</span>
-                <span className="product-card-category">{productCategory?.label ?? 'Producto'}</span>
+                <span className="product-card-header"><span className={`product-card-icon ${product.tint}`}><Icon aria-hidden="true" className={product.iconColor} size={25} strokeWidth={1.9} /></span><span className="product-card-name">{product.shortName}</span></span>
+                <span className="product-card-bottom"><span className="product-card-category">{productCategory?.label ?? 'Producto'}</span><span className="product-card-price"><strong>{formatCurrency(product.price)}</strong>{product.stockQuantity !== undefined && <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>{outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}</span>}</span></span>
               </span>
-              <span className="product-card-side"><strong>{formatCurrency(product.price)}</strong>{product.stockQuantity !== undefined && <span className={`product-stock ${outOfStock ? 'is-empty' : ''}`}>{outOfStock ? 'Agotado' : `${product.stockQuantity} disp.`}</span>}<span className="product-card-add" aria-hidden="true">+</span></span>
             </button>
           )
         })}
